@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>嫂嫂模拟器 · 时代峰峻版</title>
+    <!-- 引入游戏外部样式表 -->
+    <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+<!-- 首页 -->
+<div class="page active" id="page-home">
+    <div class="home-content">
+        <div class="home-logo">
+            <div class="home-logo-icon">🌙</div>
+            <div class="home-logo-title">嫂嫂模拟器</div>
+            <div class="home-logo-sub">时代峰峻版</div>
+        </div>
+        <div class="home-btn" onclick="checkApiAndStart()">
+            <div class="home-btn-icon green">🎮</div>
+            <span class="home-btn-text">开始新游戏</span>
+            <span class="home-btn-arrow">›</span>
+        </div>
+        <div class="home-btn" onclick="navTo('page-save')">
+            <div class="home-btn-icon blue">📂</div>
+            <span class="home-btn-text">读取存档</span>
+            <span class="home-btn-arrow">›</span>
+        </div>
+        <div class="home-btn" onclick="navTo('page-api')">
+            <div class="home-btn-icon orange">⚙️</div>
+            <span class="home-btn-text">API 设置</span>
+            <span class="home-btn-arrow">›</span>
+        </div>
+    </div>
+</div>
+
+<!-- API配置页 -->
+<div class="page" id="page-api">
+    <div class="container">
+        <div class="page-header">
+            <div class="page-header-back" onclick="navTo('page-home')">
+                <svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9l8 8" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="page-header-title">API 设置</div>
+        </div>
+        <div class="cors-hint">⚠️ 请使用支持 CORS 的中转站地址（如 openrouter.ai），直连官网会被浏览器拦截。</div>
+        <div class="form-group">
+            <label class="label">API 类型</label>
+            <div class="radio-group" id="api-type-group">
+                <div class="radio-item active" data-val="openai" onclick="selectApiType(this)">OpenAI 兼容</div>
+                <div class="radio-item" data-val="claude" onclick="selectApiType(this)">Claude</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="label">Base URL</label>
+            <input class="input-field" id="api-url" placeholder="https://your-proxy.com/v1">
+        </div>
+        <div class="form-group">
+            <label class="label">API Key</label>
+            <input class="input-field" id="api-key" type="password" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+            <label class="label">模型名称</label>
+            <input class="input-field" id="api-model" placeholder="gpt-4o / deepseek-chat">
+        </div>
+        <button class="btn btn-secondary" onclick="testApi()" style="margin-bottom:10px">🔗 测试连接</button>
+        <div class="test-result" id="test-result"></div>
+        <div style="height:10px"></div>
+        <button class="btn btn-primary" onclick="saveApiConfig()">💾 保存配置</button>
+    </div>
+</div>
+
+<!-- 角色设定页 -->
+<div class="page" id="page-character">
+    <div class="container">
+        <div class="page-header">
+            <div class="page-header-back" onclick="navTo('page-home')">
+                <svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9l8 8" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="page-header-title">角色设定</div>
+        </div>
+
+        <div class="section-title">👤 玩家角色卡</div>
+        <div class="tab-bar" id="player-tabs">
+            <div class="tab-item active" onclick="switchPlayerTab('quick')">✨ 快速创建</div>
+            <div class="tab-item" onclick="switchPlayerTab('paste')">📋 粘贴导入</div>
+        </div>
+
+                        <!-- 🌟 升级版：自由组合下拉框 + 一句话自定义人设 -->
+        <div id="player-tab-quick">
+            <div style="display:flex; gap:10px;">
+                <div class="form-group" style="flex:1;">
+                    <label class="label">姓名</label>
+                    <input class="input-field" id="char-name" placeholder="你的角色名" />
+                </div>
+                <div class="form-group" style="width:80px;">
+                    <label class="label">年龄</label>
+                    <input class="input-field" id="char-age" type="number" placeholder="22" />
+                </div>
+                <div class="form-group" style="width:100px;">
+                    <label class="label">年份</label>
+                    <input class="input-field" id="char-year" type="number" placeholder="2026" />
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+                <label class="label">💡 一句话人设 / 自定义补充 (自由发挥，AI优先参考)</label>
+                <textarea class="input-field" id="char-custom" rows="3" placeholder="不想选下方的菜单？直接在这里写！例如：21岁中传学生，搞笑女E人，家境普通但心气高。AI会优先根据这段话来扩写！"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="label">职业身份 (可下拉选择，也可自由打字)</label>
+                <input class="input-field" id="char-job" onfocus="this.value=''" list="job-list" placeholder="请选择或输入(如：修空调的杀手)...">
+                <datalist id="job-list">
+                    <option value="高校学生（传媒/艺术/普通专业）">
+                    <option value="时代峰峻工作人员（企划/经纪/宣传等）">
+                    <option value="练习生">
+                    <option value="出道艺人">
+                    <option value="娱乐记者/媒体人">
+                    <option value="品牌公关/时尚行业">
+                    <option value="普通上班族（非娱乐行业）">
+                    <option value="自由职业">
+                </datalist>
+            </div>
+
+            <div class="form-group">
+                <label class="label">外貌特征 (可下拉选择，也可自由打字)</label>
+                <input class="input-field" id="char-look" onfocus="this.value=''" list="look-list" placeholder="请选择或输入...">
+                <datalist id="look-list">
+                    <option value="明艳甜妹，笑起来杀伤力很大">
+                    <option value="清冷御姐，不笑让人不敢靠近">
+                    <option value="邻家少年感，干净清爽">
+                    <option value="温柔知性，书卷气">
+                    <option value="浓颜系，五官立体有攻击性">
+                    <option value="淡颜系，耐看舒服">
+                </datalist>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+                <label class="label">🤫 隐藏暗线与秘密 (选填，AI将生成专属暴露危机)</label>
+                <textarea class="input-field" id="char-secret" rows="2" placeholder="例如：其实是私生饭/有多个小号的职黑/掌握高层黑料..."></textarea>
+            </div>
+
+            <div class="section-title" style="margin-top:20px; font-size:14px;">🎭 性格维度分析</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <input class="input-field" id="char-soc" onfocus="this.value=''" list="soc-list" placeholder="社交倾向" style="font-size:13px;">
+                <datalist id="soc-list"><option value="外向充电"><option value="内向独处"><option value="外热内冷"><option value="外冷内热"></datalist>
+                
+                <input class="input-field" id="char-dec" onfocus="this.value=''" list="dec-list" placeholder="决策模式" style="font-size:13px;">
+                <datalist id="dec-list"><option value="理性主导"><option value="感性驱动"><option value="恋爱脑"><option value="冲动派"></datalist>
+                
+                <input class="input-field" id="char-fam" onfocus="this.value=''" list="fam-list" placeholder="家庭经济" style="font-size:13px;">
+                <datalist id="fam-list"><option value="普通工薪"><option value="小康中产"><option value="富裕家庭"><option value="财阀千金"><option value="单亲困难"></datalist>
+
+                <input class="input-field" id="char-lview" onfocus="this.value=''" list="lview-list" placeholder="恋爱观" style="font-size:13px;">
+                <datalist id="lview-list"><option value="享受地下恋"><option value="绝不地下"><option value="海王嘴硬"><option value="双标护短"></datalist>
+            </div>
+
+            <button class="btn btn-secondary" onclick="generatePlayerCard()" style="margin-top:15px;">✨ 用 AI 扩写丰满人设卡</button>
+            <div class="generated-card" id="gen-card-area" style="display:none; margin-top:15px;">
+                <textarea class="input-field" id="player-card-result" rows="10" style="font-size:13px; line-height:1.6;"></textarea>
+            </div>
+        </div>
+
+        <div id="player-tab-paste" style="display:none">
+            <div class="form-group">
+                <label class="label">粘贴你的角色卡</label>
+                <textarea class="input-field" id="player-card-paste" rows="10"></textarea>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section-title">♥ 攻略对象卡</div>
+        <div id="target-cards-container">
+            <div class="target-card" data-index="0">
+                <div class="target-card-header">
+                    <span class="target-card-label">♥ 攻略对象 1</span>
+                </div>
+                <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
+                
+                <!-- 🌟 新增：把初始关系移到了每个男主自己这里 -->
+                <div class="form-group" style="margin-top:10px;">
+                    <label class="label">你与 TA 的初始关系</label>
+                    <input class="input-field target-rel" onfocus="this.value=''" list="rel-list" placeholder="请选择或自由输入...">
+                    <datalist id="rel-list">
+                        <option value="陌生人（完全不认识）">
+                        <option value="单向认知（粉丝/路人）">
+                        <option value="点头之交（眼熟）">
+                        <option value="工作关系（同事/合作）">
+                        <option value="私交好友">
+                        <option value="破镜重圆（前任）">
+                    </datalist>
+                </div>
+            </div>
+        </div>
+        <div class="add-target-btn" onclick="addTargetCard()">＋ 添加更多攻略对象</div>
+
+        <div class="divider"></div>
+        <div class="form-group">
+            <label class="label">叙事偏好</label>
+            <select class="input-field" id="narrative-pref">
+                <option value="balanced">⚖️ 平衡（甜虐交替）</option>
+                <option value="sweet">🍬 偏甜</option>
+                <option value="angst">🖤 偏虐</option>
+                <option value="realistic">📰 偏现实</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="startGame()">🎬 进入游戏</button>
+        <div style="height:30px"></div>
+    </div>
+</div>
+
+<!-- 游戏主界面 -->
+<div class="page" id="page-game">
+    <div class="game-topbar">
+        <div class="game-topbar-left">
+            <span class="game-round" id="game-round">第1回合</span>
+            <span class="game-time-tag" id="game-time">Day1 · 上午</span>
+        </div>
+        <div class="game-topbar-right">
+            <button class="game-topbar-btn" onclick="openHistory()">📜</button>
+            <button class="game-topbar-btn" onclick="navTo('page-save')">💾</button>
+            <button class="game-topbar-btn" onclick="confirmGoHome()">🏠</button>
+        </div>
+    </div>
+
+    <div class="game-scroll" id="game-scroll">
+        <div class="game-status" id="game-status">
+            <div class="status-row"><span class="status-label">📍 地点</span><span class="status-value" id="st-location">未知</span></div>
+            <div class="status-row"><span class="status-label">📢 舆论</span><span class="status-value" id="st-reputation">隐形</span></div>
+            <div id="st-affections"></div>
+        </div>
+
+        <div class="game-narrative" id="game-narrative">
+            <div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-text">正在生成剧情...</div></div>
+        </div>
+        <div class="game-choices" id="game-choices"></div>
+    </div>
+
+    <div class="game-input-bar">
+        <input type="text" id="game-input" placeholder="自由输入你想做的事..." onkeydown="if(event.key==='Enter')sendPlayerInput()">
+        <button id="game-send-btn" onclick="sendPlayerInput()">发送</button>
+    </div>
+</div>
+
+<!-- 存档页 -->
+<div class="page" id="page-save">
+    <div class="container">
+        <div class="page-header">
+            <div class="page-header-back" onclick="goBackFromSave()"><svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9l8 8" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="page-header-title">存档管理</div>
+        </div>
+        <div class="section-title">📌 自动存档</div>
+        <div class="save-slot" id="auto-save-slot"><div class="save-slot-empty">暂无</div></div>
+        <button class="btn btn-secondary" onclick="loadSave('auto')" style="margin-bottom:20px">读取自动存档</button>
+
+        <div class="section-title">🗂️ 手动存档</div>
+        <div id="manual-save-slots"></div>
+
+        <div class="divider"></div>
+        <button class="btn btn-secondary" onclick="exportSave()" style="margin-bottom:10px">📤 导出存档JSON</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 导入存档JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSave(event)">
+        <div style="height:30px"></div>
+    </div>
+</div>
+
+<!-- 📱 手机浮窗与iframe -->
+<div class="phone-fab" id="phone-fab" onclick="openPhone()">
+    <span class="phone-fab-icon">📱</span>
+    <span class="phone-fab-badge" id="phone-badge">0</span>
+</div>
+
+<div class="phone-overlay" id="phone-overlay">
+    <div style="position:relative;">
+        <div class="phone-close-btn" onclick="closePhone()">✕</div>
+        <div class="phone-frame">
+            <iframe id="phone-iframe" src="about:blank"></iframe>
+        </div>
+    </div>
+</div>
+
+<div class="history-mask" id="history-mask" onclick="closeHistory()"></div>
+<div class="history-panel" id="history-panel">
+    <div class="history-close" onclick="closeHistory()">← 关闭</div>
+    <div class="section-title">📜 历史记录</div>
+    <div id="history-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 引入游戏大脑脚本 -->
+<script src="js_game/db_npc.js"></script>
+<script src="js_game/prompts.js"></script>       <!-- 🌟 新增：万字神级设定组装库 -->
+<script src="js_game/db_knowledge.js"></script>  <!-- 🌟 新增：前端检索词条库 -->
+<script src="js_game/api.js"></script>
+<script src="js_game/save.js"></script>
+<script src="js_game/main_story.js"></script>
+
+</body>
+</html>
