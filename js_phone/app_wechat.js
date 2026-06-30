@@ -94,6 +94,9 @@ function renderConversation() {
             var topCls = st==='pending'?'pending':'done';
             var click = st==='pending'?' onclick="showTransferAction('+idx+')"':'';
             content = '<div class="wx-transfer"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+msg.amount+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+(msg.note||'转账')+'</div></div>';
+                } else if (msg.type === 'typing') {
+            // 新增：正在输入的跳动气泡
+            content = '<div class="wx-bubble typing-dots"><span>·</span><span>·</span><span>·</span></div>';
         } else {
             content = '<div class="wx-bubble">'+(msg.message||msg.text||'')+'</div>';
         }
@@ -111,12 +114,15 @@ function toggleTranscript(idx) {
 }
 
 function showPlusMenu() {
-    var el = document.getElementById('screen-wechat');
-    var overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    overlay.onclick = function(e){if(e.target===overlay)overlay.remove();};
-    overlay.innerHTML = '<div class="action-sheet"><div class="action-sheet-item">发起群聊</div><div class="action-sheet-item">添加好友</div><div class="action-sheet-item">扫一扫</div><div class="action-sheet-item">收付款</div><div class="action-sheet-cancel" onclick="this.closest(\'.overlay\').remove()">取消</div></div>';
-    el.querySelector('.wechat-container').appendChild(overlay);
+    // 调用腾讯微信原生底部菜单
+    weui.actionSheet([
+        { label: '发起群聊', onClick: function () { console.log('点击发起群聊'); } },
+        { label: '添加好友', onClick: function () { console.log('点击添加好友'); } },
+        { label: '扫一扫', onClick: function () { console.log('点击扫一扫'); } },
+        { label: '收付款', onClick: function () { console.log('点击收付款'); } }
+    ], [
+        { label: '取消', onClick: function () {} }
+    ]);
 }
 
 function showPlusPanel() {
