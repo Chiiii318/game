@@ -300,14 +300,44 @@ ${relationDesc}
 }
 
 async function sendFirstRound() {
+    const narrativeEl = document.getElementById('game-narrative');
+    narrativeEl.textContent = '...'; 
+    setLoading(true);
+
     try {
-        const response = await callAI([{ role: 'system', content: buildSystemPrompt() }, { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' }]);
+        const messages = [
+            { role: 'system', content: buildSystemPrompt() }, 
+            { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' }
+        ];
+
         gameState.history.push({ role: 'user', content: '[游戏开始]' });
-        gameState.history.push({ role: 'assistant', content: response });
-        parseAndRender(response);
-        autoSave();
-    } catch (e) { document.getElementById('game-narrative').textContent = '❌ 请求失败：' + e.message; }
-    setLoading(false);
+
+        await callAIStream(messages, {
+            onChunk: (chunk, fullText) => {
+                let displayStr = fullText;
+                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+                if (nMatch) {
+                    displayStr = nMatch[1].trim();
+                } else if (fullText.includes('---')) {
+                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+                }
+                narrativeEl.innerHTML = displayStr.replace(/\n/g, '<br>');
+            },
+            onDone: (fullText) => {
+                gameState.history.push({ role: 'assistant', content: fullText });
+                parseAndRender(fullText);
+                autoSave();
+                setLoading(false);
+            },
+            onError: (err) => {
+                narrativeEl.textContent = '❌ 请求失败：' + err.message;
+                setLoading(false);
+            }
+        });
+    } catch (e) { 
+        narrativeEl.textContent = '❌ 请求出错：' + e.message; 
+        setLoading(false);
+    }
 }
 
 async function sendPlayerInput() {
@@ -320,24 +350,64 @@ function sendChoice(choiceText) { if(!isRequesting) sendToAI('我选择：' + ch
 function sendContinue() { if(!isRequesting) sendToAI('[继续]'); }
 
 async function sendToAI(userText) {
-    isRequesting = true; setLoading(true); document.getElementById('game-send-btn').disabled = true;
+    if (isRequesting) return;
+    
+    isRequesting = true; 
+    setLoading(true); 
+    document.getElementById('game-send-btn').disabled = true;
+    
+    // 玩家发出的文字，先存入历史记录
     gameState.history.push({ role: 'user', content: userText });
     
     const messages = [{ role: 'system', content: buildSystemPrompt() }];
+    // 控制历史记录长度，防止越来越卡
     const recentHistory = gameState.history.slice(-15);
     recentHistory.forEach(h => messages.push({ role: h.role, content: h.content }));
 
+    const narrativeEl = document.getElementById('game-narrative');
+    narrativeEl.textContent = '...'; // 清空并准备接收文字
+
     try {
-        const response = await callAI(messages);
-        gameState.history.push({ role: 'assistant', content: response });
-        gameState.round++;
-        parseAndRender(response);
-        autoSave();
+        // 核心修改：调用流式函数 callAIStream
+        await callAIStream(messages, {
+            onChunk: (chunk, fullText) => {
+                // 流式解析：提取 ---NARRATIVE--- 之后，其他 --- 标签之前的内容实时显示
+                let displayStr = fullText;
+                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+                if (nMatch) {
+                    displayStr = nMatch[1].trim();
+                } else if (fullText.includes('---')) {
+                    // 如果没找到 NARRATIVE 但有其他标签，尝试清理掉前面的标签
+                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+                }
+                narrativeEl.innerHTML = displayStr.replace(/\n/g, '<br>');
+            },
+            onDone: (fullText) => {
+                // 完全接收完毕后，存入历史，并调用完整的解析逻辑
+                gameState.history.push({ role: 'assistant', content: fullText });
+                gameState.round++;
+                parseAndRender(fullText);
+                autoSave();
+                
+                isRequesting = false; 
+                setLoading(false); 
+                document.getElementById('game-send-btn').disabled = false;
+            },
+            onError: (err) => {
+                narrativeEl.textContent = '❌ 请求失败：' + err.message;
+                gameState.history.pop();
+                isRequesting = false; 
+                setLoading(false); 
+                document.getElementById('game-send-btn').disabled = false;
+            }
+        });
     } catch (e) {
-        document.getElementById('game-narrative').textContent = '❌ 请求失败：' + e.message;
+        narrativeEl.textContent = '❌ 请求出错：' + e.message;
         gameState.history.pop();
+        isRequesting = false; 
+        setLoading(false); 
+        document.getElementById('game-send-btn').disabled = false;
     }
-    isRequesting = false; setLoading(false); document.getElementById('game-send-btn').disabled = false;
 }
 
 // ══════════════════════════════════════
