@@ -70,14 +70,14 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .ic-im { background: #34c759; }
 
 /* 微信通用 */
-#screen-wechat { background: #ededed; padding-top: 48px; width: 100%; }
+#screen-wechat { background: #fff; padding-top: 48px; width: 100%; }
 .wechat-container { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
-.wx-navbar { background: #ededed; padding: 0 16px; display: flex; align-items: center; flex-shrink: 0; height: 44px; position: relative; }
+.wx-navbar { background: #fff; padding: 0 16px; display: flex; align-items: center; flex-shrink: 0; height: 44px; position: relative; }
 .wx-navbar-left { position: absolute; left: 16px; display: flex; align-items: center; gap: 4px; z-index: 2; }
 .wx-navbar-center { width: 100%; text-align: center; font-size: 17px; font-weight: 600; color: #000; pointer-events: none; }
 .wx-navbar-right { position: absolute; right: 16px; display: flex; align-items: center; gap: 16px; z-index: 2; }
 .wx-navbar-btn { cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; }
-.wx-search-bar { padding: 6px 16px 10px; background: #ededed; flex-shrink: 0; }
+.wx-search-bar { padding: 6px 16px 10px; background: #fff; flex-shrink: 0; }
 .wx-search-inner { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fff; border-radius: 6px; cursor: pointer; }
 .wx-search-inner span { font-size: 14px; color: #b0b0b0; }
 .wx-body { flex: 1; overflow-y: auto; }
@@ -773,3 +773,6 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 }
 .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
 .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* iOS安全区适配 */
+.wx-tabbar, .dy-tabbar, .xhs-tabbar, .db-tabbar { padding-bottom: env(safe-area-inset-bottom, 0px); }

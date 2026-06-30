@@ -87,16 +87,23 @@ document.addEventListener('DOMContentLoaded', function() {
         dyArea = e.target.closest('#dy-video-area');
         if(dyArea) startY = e.touches[0].clientY;
     }, {passive:true});
-    document.addEventListener('touchend', function(e){
+       document.addEventListener('touchend', function(e){
         if(!dyArea || !dyData.videos || dyData.videos.length<=1) return;
         var endY = e.changedTouches[0].clientY;
         var diff = startY - endY;
-        if(diff > 50) { // 上滑，下一个
-            dyData.currentVideoIdx = (dyData.currentVideoIdx + 1) % dyData.videos.length;
-            dyNav('feed');
-        } else if(diff < -50) { // 下滑，上一个
-            dyData.currentVideoIdx = (dyData.currentVideoIdx - 1 + dyData.videos.length) % dyData.videos.length;
-            dyNav('feed');
+        if(Math.abs(diff) > 50) {
+            // 加过渡动画
+            var direction = diff > 0 ? -1 : 1; // 上滑=-1，下滑=1
+            dyArea.style.transition = 'transform 0.3s ease';
+            dyArea.style.transform = 'translateY(' + (direction * 100) + '%)';
+            setTimeout(function(){
+                if(diff > 0) {
+                    dyData.currentVideoIdx = (dyData.currentVideoIdx + 1) % dyData.videos.length;
+                } else {
+                    dyData.currentVideoIdx = (dyData.currentVideoIdx - 1 + dyData.videos.length) % dyData.videos.length;
+                }
+                dyNav('feed');
+            }, 300);
         }
         dyArea = null;
     }, {passive:true});

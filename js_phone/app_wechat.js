@@ -306,7 +306,7 @@ function renderMe() {
     var pc = typeof playerColor!=='undefined'?playerColor:'#ff9eaa';
     var pWxId = typeof playerWxId!=='undefined'?playerWxId:'player_001';
     
-    return '<div class="wechat-container"><div class="wx-body wx-me-page"><div class="wx-me-header" onclick="wxNav(\'myprofile\')"><div class="wx-me-avatar" style="background:'+pc+'">'+pn[0]+'</div><div class="wx-me-info"><div class="wx-me-name">'+pn+'</div><div class="wx-me-id">微信号：'+pWxId+'</div></div><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"></div><div class="wx-navbar-center">我</div><div class="wx-navbar-right"></div></div><div class="wx-body wx-me-page"><div class="wx-me-header" onclick="wxNav(\'myprofile\')">
         '<div class="wx-me-gap"></div>'+
         '<div class="wx-me-item" onclick="wxNav(\'moments\')"><div class="wx-me-item-icon">'+IC.moments+'</div><span class="wx-me-item-name">朋友圈</span><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-me-gap"></div>'+

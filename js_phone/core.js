@@ -45,6 +45,39 @@ function setStatusbarMode(m) { document.getElementById('statusbar').className = 
 function setHomeBarMode(m) { var el = document.getElementById('home-bar'); el.className = 'home-bar ' + m; el.style.display = m === 'hidden' ? 'none' : 'block'; }
 function showScreen(id) { document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');}); document.getElementById(id).classList.add('active'); }
 function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
+// 锁屏上滑解锁手势
+(function(){
+    var startY = 0, lockEl = null;
+    document.addEventListener('touchstart', function(e){
+        lockEl = document.getElementById('screen-lock');
+        if(!lockEl || !lockEl.classList.contains('active')) { lockEl=null; return; }
+        startY = e.touches[0].clientY;
+    }, {passive:true});
+    document.addEventListener('touchmove', function(e){
+        if(!lockEl) return;
+        var diff = startY - e.touches[0].clientY;
+        if(diff > 0) {
+            lockEl.style.transform = 'translateY('+ (-diff) +'px)';
+            lockEl.style.opacity = Math.max(0, 1 - diff/300);
+        }
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+        if(!lockEl) return;
+        var diff = startY - e.changedTouches[0].clientY;
+        if(diff > 80) {
+            lockEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            lockEl.style.transform = 'translateY(-100%)';
+            lockEl.style.opacity = '0';
+            setTimeout(function(){ unlockPhone(); lockEl.style=''; }, 300);
+        } else {
+            lockEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+            lockEl.style.transform = '';
+            lockEl.style.opacity = '';
+            setTimeout(function(){ lockEl.style.transition=''; }, 300);
+        }
+        lockEl = null;
+    }, {passive:true});
+})();
 function goDesktop() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 function openApp(id) {
     // 打开App时自动清除该App的桌面角标
@@ -313,6 +346,43 @@ function refreshCurrentView() {
 }
 
 // ═══ 通知主页面：手机 iframe 已加载完毕，可以接收消息了 ═══
+// iOS 左边缘右滑返回手势
+(function(){
+    var startX=0, startY=0, swiping=false, currentScreen=null;
+    document.addEventListener('touchstart', function(e){
+        if(e.touches[0].clientX > 30) return; // 只在左边缘30px内触发
+        var active = document.querySelector('.screen.active');
+        if(!active || active.id==='screen-home' || active.id==='screen-lock') return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        swiping = true;
+        currentScreen = active;
+    }, {passive:true});
+    document.addEventListener('touchmove', function(e){
+        if(!swiping) return;
+        var dx = e.touches[0].clientX - startX;
+        var dy = Math.abs(e.touches[0].clientY - startY);
+        if(dy > dx) { swiping=false; currentScreen.style.transform=''; return; }
+        if(dx > 0) currentScreen.style.transform = 'translateX('+dx+'px)';
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+        if(!swiping || !currentScreen) { swiping=false; return; }
+        var dx = e.changedTouches[0].clientX - startX;
+        if(dx > 100) {
+            currentScreen.style.transition = 'transform 0.25s ease';
+            currentScreen.style.transform = 'translateX(100%)';
+            setTimeout(function(){
+                currentScreen.style='';
+                goDesktop();
+            }, 250);
+        } else {
+            currentScreen.style.transition = 'transform 0.2s ease';
+            currentScreen.style.transform = '';
+            setTimeout(function(){ currentScreen.style.transition=''; }, 200);
+        }
+        swiping=false;
+    }, {passive:true});
+})();
 window.addEventListener('DOMContentLoaded', function() {
     window.parent.postMessage({ type: 'PHONE_READY' }, '*');
 });
