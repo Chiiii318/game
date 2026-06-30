@@ -444,35 +444,40 @@ function parseAndRender(response) {
 
             // 解析全平台手机数据 (JSON格式提取)
         const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
-        if (pMatch) {
-            try {
-                const pData = JSON.parse(pMatch[1].trim());
-                // 1. 点亮所有有新消息的 APP 红点
-                if (pData.badges) {
-    // 累加总角标数给浮窗按钮
-    let totalBadge = 0;
-    Object.values(pData.badges).forEach(v => totalBadge += (parseInt(v) || 0));
-    gameState.phoneBadge = totalBadge;
-    // 同时把角标数据转发给手机 iframe
-    const iframe = document.getElementById('phone-iframe');
-    if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({ type: 'PHONE_DATA', data: { badges: pData.badges } }, '*');
-    }
-}
-                
-                // 2. 遍历所有 8 个平台，只要 AI 生成了数据，就分别存进各自的临时抽屉里！
-                if (pData.app_data) {
-                    const apps = ['wechat', 'weibo', 'douban', 'douyin', 'redbook', 'bilibili', 'tfamily', 'imessage'];
-                    apps.forEach(app => {
-                        if (pData.app_data[app] && pData.app_data[app].length > 0) {
-                            window.sessionStorage.setItem('current_' + app + '_data', JSON.stringify(pData.app_data[app]));
-                        }
-                    });
-                }
-            } catch (e) {
-                console.error('手机数据解析失败，可能是大模型输出的JSON格式不对', e);
+if (pMatch) {
+    try {
+        const newPhoneData = JSON.parse(pMatch[1].trim());
+        if (!gameState.allPhoneData) gameState.allPhoneData = [];
+        const lastPD = gameState.allPhoneData[gameState.allPhoneData.length - 1];
+        if (JSON.stringify(lastPD) !== JSON.stringify(newPhoneData)) {
+            gameState.allPhoneData.push(newPhoneData);
+            let newBadgeCount = 0;
+            if(newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadgeCount += (v||0));
+            else newBadgeCount = newPhoneData.badge || 1;
+            gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadgeCount;
+        }
+
+        // ★★★ 核心修复：将完整 PHONE_DATA（含 app_data）转发给手机 iframe ★★★
+        const iframe = document.getElementById('phone-iframe');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'PHONE_DATA', data: newPhoneData }, '*');
+
+            // 如果有 app_data，逐个 App 分发过去
+            if (newPhoneData.app_data) {
+                Object.keys(newPhoneData.app_data).forEach(appId => {
+                    const appContent = newPhoneData.app_data[appId];
+                    if (appContent && appContent.length > 0) {
+                        iframe.contentWindow.postMessage({
+                            type: 'PHONE_APP_DATA',
+                            app: appId,
+                            payload: appContent
+                        }, '*');
+                    }
+                });
             }
         }
+    } catch (e) { console.error('手机数据解析失败', e); }
+}
 
     const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
     if (dMatch) {
