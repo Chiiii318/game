@@ -20,6 +20,10 @@ updateTimeDisplay();
 
 function formatChatTime(ts) {
     if(!ts) return "";
+    // 如果传入的是字符串（如 "刚刚"），直接返回
+    if(typeof ts === 'string') return ts;
+    // 如果字段不完整，返回默认文本
+    if(ts.hour === undefined || ts.minute === undefined) return "刚刚";
     var time = String(ts.hour).padStart(2,'0') + ':' + String(ts.minute).padStart(2,'0');
     if (ts.daysAgo === 0) return time;
     if (ts.daysAgo === 1) return '昨天 ' + time;
@@ -136,7 +140,7 @@ window.addEventListener('message', function(e) {
                 if (!items || !Array.isArray(items) || items.length === 0) return;
                 appCache[appId] = 'loaded';
 
-                if (appId === 'wechat' && typeof wxData !== 'undefined') {
+                               if (appId === 'wechat' && typeof wxData !== 'undefined') {
                     items.forEach(function(chat) {
                         if (chat.chatId && chat.messages) {
                             var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
@@ -147,7 +151,12 @@ window.addEventListener('message', function(e) {
                                 existing.time = '刚刚';
                             }
                             if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
-                            chat.messages.forEach(function(msg) { wxData.conversations[chat.chatId].push(msg); });
+                            var convArr = wxData.conversations[chat.chatId];
+                            chat.messages.forEach(function(msg) {
+                                var last = convArr[convArr.length - 1];
+                                if (last && last.message === msg.message && last.sender === msg.sender && last.isSelf === msg.isSelf) return;
+                                convArr.push(msg);
+                            });
                         }
                     });
                 }
@@ -183,7 +192,7 @@ window.addEventListener('message', function(e) {
         appCache[app] = 'loaded';
 
         // ★ 微信：写入聊天列表和对话详情
-        if (app === 'wechat' && typeof wxData !== 'undefined') {
+                if (app === 'wechat' && typeof wxData !== 'undefined') {
             items.forEach(function(chat) {
                 if (chat.chatId && chat.messages) {
                     var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
@@ -194,7 +203,12 @@ window.addEventListener('message', function(e) {
                         existing.time = '刚刚';
                     }
                     if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
-                    chat.messages.forEach(function(msg) { wxData.conversations[chat.chatId].push(msg); });
+                    var convArr = wxData.conversations[chat.chatId];
+                    chat.messages.forEach(function(msg) {
+                        var last = convArr[convArr.length - 1];
+                        if (last && last.message === msg.message && last.sender === msg.sender && last.isSelf === msg.isSelf) return;
+                        convArr.push(msg);
+                    });
                 }
             });
             // 如果当前正在看微信，刷新视图
