@@ -457,24 +457,23 @@ if (pMatch) {
             gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadgeCount;
         }
 
-        // ★★★ 核心修复：将完整 PHONE_DATA（含 app_data）转发给手机 iframe ★★★
-        const iframe = document.getElementById('phone-iframe');
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type: 'PHONE_DATA', data: newPhoneData }, '*');
+                // ★★★ 核心修复：将完整 PHONE_DATA（含 app_data）转发给手机 iframe ★★★
+        // 先缓存到待发送队列（因为 iframe 可能还没加载）
+        if (!window._pendingPhoneMessages) window._pendingPhoneMessages = [];
+        window._pendingPhoneMessages.push({ type: 'PHONE_DATA', data: newPhoneData });
+        if (newPhoneData.app_data) {
+            Object.keys(newPhoneData.app_data).forEach(appId => {
+                const appContent = newPhoneData.app_data[appId];
+                if (appContent && appContent.length > 0) {
+                    window._pendingPhoneMessages.push({ type: 'PHONE_APP_DATA', app: appId, payload: appContent });
+                }
+            });
+        }
 
-            // 如果有 app_data，逐个 App 分发过去
-            if (newPhoneData.app_data) {
-                Object.keys(newPhoneData.app_data).forEach(appId => {
-                    const appContent = newPhoneData.app_data[appId];
-                    if (appContent && appContent.length > 0) {
-                        iframe.contentWindow.postMessage({
-                            type: 'PHONE_APP_DATA',
-                            app: appId,
-                            payload: appContent
-                        }, '*');
-                    }
-                });
-            }
+        // 尝试立刻发送（如果 iframe 已加载）
+        const iframe = document.getElementById('phone-iframe');
+        if (iframe && iframe.src && iframe.src.indexOf('phone.html') !== -1 && iframe.contentWindow) {
+            _flushPhoneMessages(iframe);
         }
     } catch (e) { console.error('手机数据解析失败', e); }
 }
@@ -584,6 +583,12 @@ function showToast(msg) {
 window.addEventListener('message', async (e) => {
     if (!e.data) return;
     const iframe = document.getElementById('phone-iframe');
+
+    // ★ iframe 加载完毕后，把之前缓存的消息全部发过去
+    if (e.data.type === 'PHONE_READY') {
+        _flushPhoneMessages(iframe);
+        return;
+    }
     
     if (e.data.type === 'PHONE_CLOSE') {
         document.getElementById("phone-overlay").classList.remove("show");
@@ -702,7 +707,17 @@ ${loreContext}
 // ══════════════════════════════════════
 // 手机浮窗、历史记录面板等辅助功能
 // ══════════════════════════════════════
+// ═══ 手机消息队列（解决 iframe 懒加载时 postMessage 丢失的问题）═══
+window._pendingPhoneMessages = [];
 
+function _flushPhoneMessages(iframe) {
+    if (!iframe || !iframe.contentWindow) return;
+    if (!window._pendingPhoneMessages || window._pendingPhoneMessages.length === 0) return;
+    window._pendingPhoneMessages.forEach(msg => {
+        iframe.contentWindow.postMessage(msg, '*');
+    });
+    window._pendingPhoneMessages = [];
+}
 function openPhone() {
     const overlay = document.getElementById('phone-overlay');
     const iframe = document.getElementById('phone-iframe');

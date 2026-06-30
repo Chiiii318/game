@@ -269,3 +269,8 @@ function refreshCurrentView() {
     else if (id === 'screen-douyin' && typeof dyNav === 'function') dyNav(dyData.currentView);
     else if (id === 'screen-bilibili' && typeof biliNav === 'function') biliNav(biliData.currentView);
 }
+
+// ═══ 通知主页面：手机 iframe 已加载完毕，可以接收消息了 ═══
+window.addEventListener('DOMContentLoaded', function() {
+    window.parent.postMessage({ type: 'PHONE_READY' }, '*');
+});
