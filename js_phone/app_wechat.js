@@ -197,7 +197,15 @@ function sendMsg() {
         chat.lastMsg = text;
         chat.sortKey = Date.now();
     }
-    wxNav('conversation',wxData.currentChatId);
+        wxNav('conversation',wxData.currentChatId);
+
+    // 显示"对方正在输入"气泡
+    var typingChatId = wxData.currentChatId;
+    var convArr = wxData.conversations[typingChatId];
+    if (convArr) {
+        convArr.push({type:'typing', isSelf:false, sender: chat ? chat.name : '?', color: chat ? chat.color : '#ccc'});
+        wxNav('conversation', typingChatId);
+    }
 
     if (typeof window.parent.postMessage === 'function') {
         window.parent.postMessage({

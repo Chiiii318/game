@@ -18,16 +18,26 @@ function updateTimeDisplay() {
 }
 updateTimeDisplay();
 
+// 游戏时间自动走：每30秒游戏内过1分钟
+setInterval(function() {
+    gameTime.minute++;
+    if (gameTime.minute >= 60) { gameTime.minute = 0; gameTime.hour++; }
+    if (gameTime.hour >= 24) { gameTime.hour = 0; gameTime.day++; }
+    updateTimeDisplay();
+}, 30000);
+
 function formatChatTime(ts) {
     if(!ts) return "";
-    // 如果传入的是字符串（如 "刚刚"），直接返回
     if(typeof ts === 'string') return ts;
-    // 如果字段不完整，返回默认文本
     if(ts.hour === undefined || ts.minute === undefined) return "刚刚";
     var time = String(ts.hour).padStart(2,'0') + ':' + String(ts.minute).padStart(2,'0');
     if (ts.daysAgo === 0) return time;
     if (ts.daysAgo === 1) return '昨天 ' + time;
-    return gameTime.month + '/' + (gameTime.day - ts.daysAgo) + ' ' + time;
+    // 跨月修复：日期不能为负数
+    var displayDay = gameTime.day - (ts.daysAgo || 0);
+    var displayMonth = gameTime.month;
+    if (displayDay <= 0) { displayMonth--; if(displayMonth<=0) displayMonth=12; displayDay += 30; }
+    return displayMonth + '/' + displayDay + ' ' + time;
 }
 
 // ═══ 导航 ═══
@@ -37,6 +47,10 @@ function showScreen(id) { document.querySelectorAll('.screen').forEach(function(
 function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 function goDesktop() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 function openApp(id) {
+    // 打开App时自动清除该App的桌面角标
+    var badgeEl = document.getElementById('badge-' + id);
+    if (badgeEl) { badgeEl.textContent = '0'; badgeEl.style.display = 'none'; }
+
     if (id === 'wechat') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-wechat'); if(typeof wxNav === 'function') wxNav('chatlist'); }
     else if (id === 'weibo') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-weibo'); if(typeof wbNav === 'function') wbNav('home'); }
     else if (id === 'douban') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-douban'); if(typeof dbNav === 'function') dbNav('home'); }
@@ -44,11 +58,18 @@ function openApp(id) {
     else if (id === 'douyin') { setStatusbarMode('light'); setHomeBarMode('light'); showScreen('screen-douyin'); if(typeof dyNav === 'function') dyNav('feed'); }
     else if (id === 'bilibili') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-bilibili'); if(typeof biliNav === 'function') biliNav('home'); }
     else if (id === 'tfamily') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-tfamily'); if(typeof tfNav === 'function') tfNav('home'); }
-    else if (id === 'imessage') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-imessage'); if(typeof imNav === 'function') imNav('list'); }
-    else if (id === 'album') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-album'); if(typeof openAlbum === 'function') openAlbum(); }
-    else if (id === 'phone') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-phone'); if(typeof openPhoneApp === 'function') openPhoneApp(); }
-    else if (id === 'notes') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-notes'); if(typeof openNotes === 'function') openNotes(); }
-    else alert(id + ' 后续Part实现');
+    else if (id === 'imessage') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-imessage'); if(typeof imNav === 'function') imNav('list'); else showPlaceholder('screen-imessage','iMessage'); }
+    else if (id === 'album') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-album'); if(typeof openAlbum === 'function') openAlbum(); else showPlaceholder('screen-album','相册'); }
+    else if (id === 'phone') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-phone'); if(typeof openPhoneApp === 'function') openPhoneApp(); else showPlaceholder('screen-phone','电话'); }
+    else if (id === 'notes') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-notes'); if(typeof openNotes === 'function') openNotes(); else showPlaceholder('screen-notes','备忘录'); }
+    else { showScreen('screen-home'); alert(id + ' 功能开发中'); }
+}
+
+function showPlaceholder(screenId, appName) {
+    var el = document.getElementById(screenId);
+    if (el && !el.innerHTML.trim()) {
+        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;font-size:14px;gap:12px;"><div style="font-size:40px;">🚧</div><div>' + appName + ' 功能开发中</div><div style="font-size:12px;color:#ccc;">后续版本更新</div><div style="margin-top:20px;padding:8px 20px;background:#f0f0f0;border-radius:18px;font-size:13px;color:#666;cursor:pointer;" onclick="goDesktop()">返回桌面</div></div>';
+    }
 }
 
 // ═══ SVG图标库 (全局) ═══
@@ -263,10 +284,17 @@ window.addEventListener('message', function(e) {
     return;
     }
 
-        if (e.data.type === 'PHONE_REPLY') {
+           if (e.data.type === 'PHONE_REPLY') {
         if(typeof wxData !== 'undefined' && wxData.conversations[e.data.chatId]) {
             var msgs = wxData.conversations[e.data.chatId];
-            e.data.replies.forEach(t => msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t}));
+            // 移除 typing 气泡
+            for (var i = msgs.length - 1; i >= 0; i--) {
+                if (msgs[i].type === 'typing') { msgs.splice(i, 1); break; }
+            }
+            e.data.replies.forEach(function(t) { msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t}); });
+            // 更新聊天列表最后一条
+            var chat = wxData.chats.find(function(c){ return c.id === e.data.chatId; });
+            if (chat) { chat.lastMsg = e.data.replies[e.data.replies.length-1] || ''; chat.time = '刚刚'; }
             if(typeof wxNav === 'function') wxNav('conversation', e.data.chatId);
         }
     }
