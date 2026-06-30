@@ -72,42 +72,43 @@ B. 选项描述
 C. 选项描述
 
 ---PHONE_DATA---
-（⚠️ 警告：绝对不可省略！必须生成合法的 JSON！必须根据剧情动态，决定哪个软件会产生数据。不要每次只生成微信和微博，请充分利用豆瓣吃瓜、小红书同款、抖音刷屏、B站二创、T-Family动态等全部生态！）
+⚠️⚠️⚠️ 致命规则：本区块绝对不可省略！每回合必须输出合法 JSON！app_data 中至少 2-3 个平台必须有实际内容数组（每个数组至少2条数据），绝对禁止全部为空数组！
+根据剧情动态决定哪些平台产生数据：涉及公开事件→微博/豆瓣必须有粉丝反应；涉及私下互动→微信必须有新消息；日常回合→小红书/抖音/B站至少有1个有内容。
 {
   "badges": {
-    "wechat": 0, "weibo": 0, "douban": 0, "douyin": 0, "redbook": 0, "bilibili": 0, "tfamily": 0, "imessage": 0
+    "wechat": 数字, "weibo": 数字, "douban": 数字, "douyin": 数字, "redbook": 数字, "bilibili": 数字, "tfamily": 数字, "imessage": 数字
   },
   "notifications": [
-    {"app": "豆瓣", "preview": "吃瓜基地：关于今天的热搜..."},
-    {"app": "小红书", "preview": "新发现：同款穿搭..."}
+    {"app": "平台中文名", "preview": "通知预览文字"}
   ],
   "app_data": {
     "wechat": [
-      // 微信聊天记录...
+      {"chatId": "联系人拼音ID", "chatName": "联系人昵称", "messages": [
+        {"isSelf": false, "sender": "发送者名", "message": "消息内容", "color": "#4a90d9"}
+      ]}
     ],
     "weibo": [
-      // 微博广场粉圈大乱斗...
+      {"author": "拟真饭圈ID如脆脆慢", "time": "刚刚", "device": "iPhone 15 Pro", "content": "正文带#话题#", "likes": 2341, "comments": 432, "shares": 120}
     ],
     "douban": [
-      // 豆瓣八组吃瓜爆料帖...
+      {"group": "小组名", "groupId": "art或observe或emoji", "title": "帖子标题", "author": "豆瓣ID", "content": "帖子正文", "likes": 123, "comments": 456}
     ],
     "douyin": [
-      // 抖音短视频弹幕与评论...
+      {"author": "账号名", "desc": "视频文案带#话题#", "likes": "52.3w", "comments": "8.4w", "shares": "2.1w", "stars": "1.2w", "danmaku": ["弹幕1", "弹幕2", "弹幕3"]}
     ],
     "redbook": [
-      // 小红书同款打卡/生活方式帖...
+      {"author": "用户名", "title": "标题多加Emoji", "likes": 3421}
     ],
     "bilibili": [
-      // B站二创视频剪辑弹幕...
+      {"title": "二创标题", "author": "UP主名", "views": "24.3万", "danmaku": "4721", "duration": "03:45"}
     ],
     "tfamily": [
-      // 时代峰峻官方APP独家动态/物料评论...
+      {"name": "时代峰峻官方", "verified": true, "time": "刚刚", "text": "文字内容", "likes": 8848, "reposts": 230}
     ],
-    "imessage": [
-      // 极其私密的手机短信...
-    ]
+    "imessage": []
   }
 }
+注意：没有数据的平台写空数组[]即可，但绝对不允许所有平台全部为空！badges数字必须与app_data中实际有内容的平台对应（有内容的平台badges>=1）。
 
 ---DATA_UPDATE---
 （数值变动指令，没有则省略此块）

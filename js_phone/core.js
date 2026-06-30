@@ -77,7 +77,18 @@ var phoneInitialized = false;
 var appCache = {};
 
 function requestAppData(appId) {
-    if (appCache[appId]) return;
+    // 如果已经由剧情自动推送过数据，不再请求（省 token）
+    if (appCache[appId] === 'loaded') return;
+    // 检查本地数据源是否已有内容
+    if (appId === 'wechat' && typeof wxData !== 'undefined' && wxData.chats && wxData.chats.length > 0) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'weibo' && typeof wbData !== 'undefined' && wbData.feed && wbData.feed.length > 0) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'douyin' && typeof dyData !== 'undefined' && dyData.videos && dyData.videos.length > 0) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'redbook' && typeof xhsData !== 'undefined' && xhsData.notes && xhsData.notes.length > 0) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'bilibili' && typeof biliData !== 'undefined' && biliData.videos && biliData.videos.length > 0) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'douban' && typeof dbData !== 'undefined' && dbData.posts && (dbData.posts.art.length > 0 || dbData.posts.observe.length > 0)) { appCache[appId] = 'loaded'; return; }
+    if (appId === 'tfamily' && typeof tfData !== 'undefined' && tfData.feed && tfData.feed.length > 0) { appCache[appId] = 'loaded'; return; }
+    // 本地没数据，去请求 AI 生成（花 token）
+    if (appCache[appId] === 'loading') return;
     appCache[appId] = 'loading';
     window.parent.postMessage({ type: 'PHONE_INTERACT', action: 'load_app', app: appId }, '*');
 }
@@ -99,7 +110,7 @@ window.addEventListener('message', function(e) {
         return;
     }
 
-    if (e.data.type === 'PHONE_DATA' && e.data.data) {
+        if (e.data.type === 'PHONE_DATA' && e.data.data) {
         var data = e.data.data;
         if (data.badges) {
             var badgeMap = {wechat:'badge-wechat',weibo:'badge-weibo',douyin:'badge-douyin',redbook:'badge-redbook',bilibili:'badge-bilibili',douban:'badge-douban',imessage:'badge-imessage'};
@@ -117,13 +128,44 @@ window.addEventListener('message', function(e) {
                 document.querySelector('.lock-notifications').insertBefore(div, document.querySelector('.lock-notifications').firstChild);
             });
         }
+
+        // ★★★ 新增：如果 PHONE_DATA 里带有 app_data，直接填充到本地数据源 ★★★
+        if (data.app_data) {
+            Object.keys(data.app_data).forEach(function(appId) {
+                var items = data.app_data[appId];
+                if (!items || !Array.isArray(items) || items.length === 0) return;
+                appCache[appId] = 'loaded';
+
+                if (appId === 'wechat' && typeof wxData !== 'undefined') {
+                    items.forEach(function(chat) {
+                        if (chat.chatId && chat.messages) {
+                            var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
+                            if (!existing) {
+                                wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
+                            } else {
+                                existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
+                                existing.time = '刚刚';
+                            }
+                            if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
+                            chat.messages.forEach(function(msg) { wxData.conversations[chat.chatId].push(msg); });
+                        }
+                    });
+                }
+                else if (appId === 'weibo' && typeof wbData !== 'undefined') { items.forEach(function(p) { wbData.feed.unshift(p); }); }
+                else if (appId === 'douyin' && typeof dyData !== 'undefined') { items.forEach(function(v) { dyData.videos.unshift(v); }); }
+                else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { xhsData.notes.unshift(n); }); }
+                else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { biliData.videos.unshift(v); }); }
+                else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); }); }
+                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
+                else if (appId === 'imessage' && typeof imData !== 'undefined') { items.forEach(function(m) { imData.chats.push(m); }); }
+            });
+        }
         return;
     }
 
-    if (e.data.type === 'PHONE_APP_DATA') {
+       if (e.data.type === 'PHONE_APP_DATA') {
     try {
         var items;
-        // 兼容两种格式：payload 已经是数组，content 是字符串
         if (Array.isArray(e.data.payload)) {
             items = e.data.payload;
         } else {
@@ -136,20 +178,78 @@ window.addEventListener('message', function(e) {
                 items = raw;
             }
         }
+        if (!items || items.length === 0) return;
         var app = e.data.app;
-            appCache[app] = 'loaded';
+        appCache[app] = 'loaded';
 
-            if (app === 'weibo' && typeof wbData !== 'undefined') { items.forEach(p => wbData.feed.unshift(p)); wbNav('feed'); }
-            else if (app === 'weibo_hotsearch' && typeof wbData !== 'undefined') { wbData.hotSearch = items.map(h => ({text:h.text||h.title, tag:h.tag||'热', count:h.count||''})); wbNav('hotsearch'); }
-            else if (app === 'douyin' && typeof dyData !== 'undefined') { items.forEach(v => dyData.videos.unshift(v)); dyNav('feed'); }
-            else if (app === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(n => xhsData.notes.unshift(n)); xhsNav('feed'); }
-            else if (app === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(v => biliData.videos.unshift(v)); biliNav('home'); }
-            else if (app === 'douban' && typeof dbData !== 'undefined') { items.forEach(p => { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); }); dbNav('group'); }
-        } catch(err) { console.error('解析失败', err); }
-        return;
+        // ★ 微信：写入聊天列表和对话详情
+        if (app === 'wechat' && typeof wxData !== 'undefined') {
+            items.forEach(function(chat) {
+                if (chat.chatId && chat.messages) {
+                    var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
+                    if (!existing) {
+                        wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
+                    } else {
+                        existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
+                        existing.time = '刚刚';
+                    }
+                    if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
+                    chat.messages.forEach(function(msg) { wxData.conversations[chat.chatId].push(msg); });
+                }
+            });
+            // 如果当前正在看微信，刷新视图
+            var activeWx = document.querySelector('.screen.active');
+            if (activeWx && activeWx.id === 'screen-wechat' && typeof wxNav === 'function') wxNav(wxData.currentView || 'chatlist');
+        }
+        // ★ 微博
+        else if (app === 'weibo' && typeof wbData !== 'undefined') {
+            items.forEach(function(p) { wbData.feed.unshift(p); });
+            var activeWb = document.querySelector('.screen.active');
+            if (activeWb && activeWb.id === 'screen-weibo' && typeof wbNav === 'function') wbNav('feed');
+        }
+        else if (app === 'weibo_hotsearch' && typeof wbData !== 'undefined') {
+            wbData.hotSearch = items.map(function(h) { return {text:h.text||h.title, tag:h.tag||'热', count:h.count||''}; });
+        }
+        // ★ 抖音
+        else if (app === 'douyin' && typeof dyData !== 'undefined') {
+            items.forEach(function(v) { dyData.videos.unshift(v); });
+            var activeDy = document.querySelector('.screen.active');
+            if (activeDy && activeDy.id === 'screen-douyin' && typeof dyNav === 'function') dyNav('feed');
+        }
+        // ★ 小红书
+        else if (app === 'redbook' && typeof xhsData !== 'undefined') {
+            items.forEach(function(n) { xhsData.notes.unshift(n); });
+            var activeXhs = document.querySelector('.screen.active');
+            if (activeXhs && activeXhs.id === 'screen-redbook' && typeof xhsNav === 'function') xhsNav('feed');
+        }
+        // ★ B站
+        else if (app === 'bilibili' && typeof biliData !== 'undefined') {
+            items.forEach(function(v) { biliData.videos.unshift(v); });
+            var activeBili = document.querySelector('.screen.active');
+            if (activeBili && activeBili.id === 'screen-bilibili' && typeof biliNav === 'function') biliNav('home');
+        }
+        // ★ 豆瓣
+        else if (app === 'douban' && typeof dbData !== 'undefined') {
+            items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); });
+            var activeDb = document.querySelector('.screen.active');
+            if (activeDb && activeDb.id === 'screen-douban' && typeof dbNav === 'function') dbNav('group');
+        }
+        // ★ TFamily
+        else if (app === 'tfamily' && typeof tfData !== 'undefined') {
+            if (!tfData.feed) tfData.feed = [];
+            items.forEach(function(p) { tfData.feed.unshift(p); });
+            var activeTf = document.querySelector('.screen.active');
+            if (activeTf && activeTf.id === 'screen-tfamily' && typeof tfNav === 'function') tfNav('home');
+        }
+        // ★ iMessage
+        else if (app === 'imessage' && typeof imData !== 'undefined') {
+            items.forEach(function(m) { imData.chats.push(m); });
+        }
+    } catch(err) { console.error('PHONE_APP_DATA 解析失败', err); }
+    return;
     }
 
-    if (e.data.type === 'PHONE_REPLY' && e.data.action === 'wechat_reply') {
+        if (e.data.type === 'PHONE_REPLY') {
         if(typeof wxData !== 'undefined' && wxData.conversations[e.data.chatId]) {
             var msgs = wxData.conversations[e.data.chatId];
             e.data.replies.forEach(t => msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t}));
