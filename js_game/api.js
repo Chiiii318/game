@@ -199,6 +199,9 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
         body = { model: cfg.model, messages: messages, temperature: cfg.temperature, max_tokens: maxTk, stream: true };
     }
 
+    // ★★★ 修复：把 fullText 声明提到 try 外面，防止 catch 里访问不到 ★★★
+    let fullText = '';
+
     try {
         const resp = await fetch(url, {
             method: 'POST',
@@ -214,7 +217,6 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder('utf-8');
-        let fullText = '';
         let buffer = '';
 
         while (true) {
@@ -264,7 +266,6 @@ async function testApi() {
     const resultEl = document.getElementById('test-result');
     resultEl.className = 'test-result';
     
-    // ... 省略，这部分保持不变 ... (为节省篇幅，这里用原逻辑即可)
     const config = {
         type: getApiType(),
         url: document.getElementById('api-url').value.trim(),

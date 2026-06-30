@@ -5,7 +5,12 @@ function navTo(pageId) {
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     const target = document.getElementById(pageId);
     if (target) target.classList.add('active');
+
+    if (pageId === 'page-save' && typeof renderSaveSlots === 'function') {
+        renderSaveSlots();
+    }
 }
+
 
 // 从存读档页面返回
 function goBackFromSave() {
@@ -126,8 +131,9 @@ async function generatePlayerCard() {
     const pCustom = document.getElementById('char-custom') ? document.getElementById('char-custom').value.trim() : '';
     
     // 组装性格维度 (防抖：万一没获取到则为空)
-    const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
-    const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 情绪:${getVal('char-emo')}, 自尊:${getVal('char-est')}, 待人:${getVal('char-int')}, 主动:${getVal('char-act')}, 独立:${getVal('char-ind')}, 恋爱:${getVal('char-lov')}`;
+          const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 家庭经济:${getVal('char-fam')}, 恋爱观:${getVal('char-lview')}`;
+
+  const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
 
        const aiPrompt = `你是《嫂嫂模拟器》的角色卡辅助生成AI。本游戏围绕中国娱乐公司"时代峰峻"（总部北京，分部重庆）及其旗下艺人展开。所有角色设定默认基于中国内地背景。
 
@@ -336,7 +342,7 @@ async function sendFirstRound() {
         });
    } catch (e) {
     narrativeEl.textContent = '❌ 请求出错：' + e.message;
-    isRequesting = false;
+    window.isRequesting = false;
     setLoading(false);
 }
 }
@@ -518,7 +524,12 @@ function renderGameUI(narrative, choices) {
         });
     }
 
-    document.getElementById('game-narrative').textContent = narrative;
+        document.getElementById('game-narrative').innerHTML = narrative
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+
 
         const choicesEl = document.getElementById('game-choices');
     choicesEl.innerHTML = '';
@@ -584,8 +595,11 @@ window.addEventListener('message', async (e) => {
     if (!e.data) return;
     const iframe = document.getElementById('phone-iframe');
 
-    // ★ iframe 加载完毕后，把之前缓存的消息全部发过去
+    
     if (e.data.type === 'PHONE_READY') {
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
+        }
         _flushPhoneMessages(iframe);
         return;
     }
@@ -594,13 +608,7 @@ window.addEventListener('message', async (e) => {
         document.getElementById("phone-overlay").classList.remove("show");
         document.body.style.overflow = "";
     }
-    
-    // 【新加】：当手机外壳加载完毕，主系统命令其初始化清空旧数据
-    if (e.data.type === 'PHONE_READY') {
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
-        }
-    }
+
     
     // 拦截手机系统的交互请求
     if (e.data.type === 'PHONE_INTERACT') {
@@ -773,3 +781,7 @@ function confirmGoHome() {
 function toggleTag(el) {
     el.classList.toggle('active');
 }
+// 页面加载完毕后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    loadApiConfig();
+});
