@@ -634,8 +634,6 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .dy-nav-tab { font-size: 14px; color: rgba(255,255,255,0.6); cursor: pointer; position: relative; padding-bottom: 4px; }
 .dy-nav-tab.active { color: #fff; font-weight: 600; }
 .dy-nav-tab.active::after { content:''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 18px; height: 2px; background: #fff; border-radius: 1px; }
-.dy-nav-right { cursor: pointer;
-
 .dy-nav-right { cursor: pointer; display: flex; align-items: center; }
 .dy-body { flex: 1; position: relative; overflow: hidden; }
 .dy-video-bg { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: linear-gradient(180deg, #1a1a2e 0%, #111 40%, #0a0a15 100%); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 36px; }
