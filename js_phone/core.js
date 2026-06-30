@@ -121,11 +121,22 @@ window.addEventListener('message', function(e) {
     }
 
     if (e.data.type === 'PHONE_APP_DATA') {
-        try {
-            var jsonStr = e.data.content.match(/\[[\s\S]*\]/);
-            if (!jsonStr) return;
-            var items = JSON.parse(jsonStr[0]);
-            var app = e.data.app;
+    try {
+        var items;
+        // 兼容两种格式：payload 已经是数组，content 是字符串
+        if (Array.isArray(e.data.payload)) {
+            items = e.data.payload;
+        } else {
+            var raw = e.data.payload || e.data.content || '';
+            if (typeof raw === 'string') {
+                var jsonStr = raw.match(/\[[\s\S]*\]/);
+                if (!jsonStr) return;
+                items = JSON.parse(jsonStr[0]);
+            } else {
+                items = raw;
+            }
+        }
+        var app = e.data.app;
             appCache[app] = 'loaded';
 
             if (app === 'weibo' && typeof wbData !== 'undefined') { items.forEach(p => wbData.feed.unshift(p)); wbNav('feed'); }

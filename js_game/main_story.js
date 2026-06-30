@@ -53,7 +53,7 @@ function buildSystemPrompt() {
 玩家属性：魅力${gameState.values.charm} / 情商${gameState.values.eq} / 人脉${gameState.values.connections} / 精力${gameState.values.energy}/${gameState.values.energyMax}
 
 【玩家角色卡】：\n${gameState.playerCard}
-【攻略对象卡】：\n${gameState.targetCards.join('\n\n')}
+【攻略对象卡】：\n${gameState.targetCards.map(t => `[初始关系: ${t.relationship}]\n${t.content}`).join('\n\n')}
 【攻略对象状态】：\n${targetStatus}
 【叙事偏好】：${gameState.narrativePref}
 
@@ -86,16 +86,16 @@ function addTargetCard() {
     div.className = 'target-card';
     div.dataset.index = count;
     div.innerHTML = `
-        <div class="target-card-header">
-            <span class="target-card-label">♥ 攻略对象 ${count + 1}</span>
-            <span class="target-card-delete" onclick="this.closest('.target-card').remove()" style="color:#ff3b30;cursor:pointer;font-size:13px;font-weight:bold;">✕ 删除</span>
-        </div>
-        <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
-        <div class="form-group" style="margin-top:10px;">
-            <label class="label">你与 TA 的初始关系</label>
-            <input class="input-field target-rel" list="rel-list" placeholder="请选择或自由输入...">
-        </div>
-    `;
+  <div class="card-header">
+    <span>♥ 攻略对象 ${count + 1}</span>
+    <span class="delete-target" onclick="this.closest('.target-card').remove()">✕ 删除</span>
+  </div>
+  <textarea class="target-textarea" rows="6" placeholder="粘贴或输入攻略对象的人设卡（姓名、性格、背景等）"></textarea>
+  <div class="target-rel-wrap">
+    <label>你与 TA 的初始关系</label>
+    <input class="target-rel" type="text" list="rel-options" placeholder="陌生人/同事/青梅竹马..." onfocus="this.value=''">
+  </div>
+`;
     container.appendChild(div);
 }
 
@@ -334,10 +334,11 @@ async function sendFirstRound() {
                 setLoading(false);
             }
         });
-    } catch (e) { 
-        narrativeEl.textContent = '❌ 请求出错：' + e.message; 
-        setLoading(false);
-    }
+   } catch (e) {
+    narrativeEl.textContent = '❌ 请求出错：' + e.message;
+    isRequesting = false;
+    setLoading(false);
+}
 }
 
 async function sendPlayerInput() {
@@ -442,12 +443,22 @@ function parseAndRender(response) {
     }
 
             // 解析全平台手机数据 (JSON格式提取)
-        const pMatch = fullText.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+        const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
         if (pMatch) {
             try {
                 const pData = JSON.parse(pMatch[1].trim());
                 // 1. 点亮所有有新消息的 APP 红点
-                if (pData.badges) updatePhoneBadges(pData.badges);
+                if (pData.badges) {
+    // 累加总角标数给浮窗按钮
+    let totalBadge = 0;
+    Object.values(pData.badges).forEach(v => totalBadge += (parseInt(v) || 0));
+    gameState.phoneBadge = totalBadge;
+    // 同时把角标数据转发给手机 iframe
+    const iframe = document.getElementById('phone-iframe');
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: 'PHONE_DATA', data: { badges: pData.badges } }, '*');
+    }
+}
                 
                 // 2. 遍历所有 8 个平台，只要 AI 生成了数据，就分别存进各自的临时抽屉里！
                 if (pData.app_data) {
@@ -537,9 +548,11 @@ function renderGameUI(narrative, choices) {
 }
 
 function setLoading(show) {
+    const narrativeEl = document.getElementById('game-narrative');
+    const choicesEl = document.getElementById('game-choices');
     if (show) {
-        document.getElementById('game-narrative').innerHTML = '<div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-text">正在推演世界线...</div></div>';
-        document.getElementById('game-choices').innerHTML = '';
+        narrativeEl.innerHTML = '<div class="loading-wrap"><div class="loading-spinner"></div><p class="loading-text">正在推演世界线...</p ></div>';
+        choicesEl.innerHTML = '';
     }
 }
 
@@ -599,12 +612,13 @@ async function handlePhoneInteract(data) {
         ];
         try {
             const reply = await callAI(messages, null, 200);
-            iframe.contentWindow.postMessage({
-                type: 'PHONE_REPLY', 
-                chatId: data.chatId, 
-                chatName: data.chatName, 
-                replies: reply.split('\n').filter(l => l.trim())
-            }, '*');
+           iframe.contentWindow.postMessage({
+    type: 'PHONE_REPLY',
+    action: 'wechat_reply',
+    chatId: data.chatId,
+    chatName: data.chatName,
+    replies: reply.split('\n').filter(l => l.trim())
+}, '*');
         } catch(e) { console.error("微信回复生成失败:", e); }
     }
 
