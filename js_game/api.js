@@ -1,10 +1,10 @@
 // ══════════════════════════════════════
-// AI API 通信模块（流式优化版）
+// AI API 通信模块（流式优化 + RAG联网检索版）
 // ══════════════════════════════════════
 
 window.apiConfig = null;
 window.isRequesting = false;
-window._currentAbort = null; // 当前请求的 AbortController
+window._currentAbort = null; 
 
 // 读取本地存的 API 配置
 function loadApiConfig() {
@@ -14,13 +14,25 @@ function loadApiConfig() {
         if (document.getElementById('api-url')) document.getElementById('api-url').value = window.apiConfig.url || '';
         if (document.getElementById('api-key')) document.getElementById('api-key').value = window.apiConfig.key || '';
         if (document.getElementById('api-model')) document.getElementById('api-model').value = window.apiConfig.model || '';
+        
+        // 读取流式开关
+        if (document.getElementById('api-stream-toggle') && window.apiConfig.stream !== undefined) {
+            document.getElementById('api-stream-toggle').checked = window.apiConfig.stream;
+        }
+        
+        // 读取联网搜索开关和密钥
+        if (document.getElementById('api-search-toggle') && window.apiConfig.enableSearch !== undefined) {
+            document.getElementById('api-search-toggle').checked = window.apiConfig.enableSearch;
+        }
+        if (document.getElementById('search-key')) document.getElementById('search-key').value = window.apiConfig.searchKey || '';
+
         document.querySelectorAll('#api-type-group .radio-item').forEach(i => {
             i.classList.toggle('active', i.dataset.val === window.apiConfig.type);
         });
     }
 }
 
-// 供页面按钮调用的：选择 API 类型
+// 选择 API 类型
 function selectApiType(el) {
     document.querySelectorAll('#api-type-group .radio-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
@@ -39,7 +51,11 @@ function saveApiConfig() {
         key: document.getElementById('api-key').value.trim(),
         model: document.getElementById('api-model').value.trim(),
         temperature: 0.85,
-        maxTokens: 4096
+        maxTokens: 4096,
+        // 保存流式和联网配置
+        stream: document.getElementById('api-stream-toggle') ? document.getElementById('api-stream-toggle').checked : true,
+        enableSearch: document.getElementById('api-search-toggle') ? document.getElementById('api-search-toggle').checked : false,
+        searchKey: document.getElementById('search-key') ? document.getElementById('search-key').value.trim() : ''
     };
     if (!config.url || !config.key || !config.model) {
         if (typeof showToast === 'function') showToast('请填写完整配置');
@@ -60,6 +76,42 @@ function abortCurrentRequest() {
 }
 
 // ──────────────────────────────────────
+// 独立功能：执行 Tavily 联网搜索 (供外部按需调用)
+// ──────────────────────────────────────
+async function performWebSearch(query) {
+    const cfg = window.apiConfig;
+    if (!cfg || !cfg.enableSearch || !cfg.searchKey) return null; // 没开启或没填密钥则不搜索
+
+    try {
+        const resp = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                api_key: cfg.searchKey,
+                query: query,
+                search_depth: 'basic',
+                max_results: 3 // 只取前3条结果，节省大模型 Token
+            })
+        });
+
+        if (!resp.ok) throw new Error('Search failed');
+        const data = await resp.json();
+        
+        if (data.results && data.results.length > 0) {
+            let searchContext = "\n【系统附加：最新真实网络资讯】\n";
+            data.results.forEach((r, i) => {
+                searchContext += `${i + 1}. ${r.title}: ${r.content}\n`;
+            });
+            return searchContext;
+        }
+        return null;
+    } catch (e) {
+        console.error("联网搜索失败:", e);
+        return null; // 失败就算了，不影响游戏主流程
+    }
+}
+
+// ──────────────────────────────────────
 // 核心调用函数（非流式，用于短请求）
 // ──────────────────────────────────────
 async function callAI(messages, configOverride, maxTokensOverride) {
@@ -71,11 +123,7 @@ async function callAI(messages, configOverride, maxTokensOverride) {
 
     if (cfg.type === 'claude') {
         url = cfg.url.replace(/\/$/, '') + '/messages';
-        headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': cfg.key,
-            'anthropic-version': '2023-06-01'
-        };
+        headers = { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' };
         let systemMsg = '';
         let convMessages = [];
         for (const m of messages) {
@@ -107,9 +155,6 @@ async function callAI(messages, configOverride, maxTokensOverride) {
 
 // ──────────────────────────────────────
 // 流式调用函数（用于游戏剧情生成）
-// onChunk(text)  : 每收到一段新文字时的回调
-// onDone(fullText): 全部完成时的回调
-// onError(err)   : 出错时的回调
 // ──────────────────────────────────────
 async function callAIStream(messages, { onChunk, onDone, onError, configOverride, maxTokensOverride } = {}) {
     const cfg = configOverride || window.apiConfig;
@@ -119,6 +164,18 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
     }
 
     const maxTk = maxTokensOverride || cfg.maxTokens || 4096;
+
+    // 🌟 如果玩家关闭了流式，直接退回到普通等待模式
+    if (cfg.stream === false) {
+        try {
+            const fullText = await callAI(messages, cfg, maxTk);
+            onDone && onDone(fullText);
+        } catch (e) {
+            onError && onError(e);
+        }
+        return;
+    }
+
     const abortCtrl = new AbortController();
     window._currentAbort = abortCtrl;
     window.isRequesting = true;
@@ -127,35 +184,19 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
 
     if (cfg.type === 'claude') {
         url = cfg.url.replace(/\/$/, '') + '/messages';
-        headers = {
-            'Content-Type': 'application/json',
-            'x-api-key': cfg.key,
-            'anthropic-version': '2023-06-01'
-        };
+        headers = { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01' };
         let systemMsg = '';
         let convMessages = [];
         for (const m of messages) {
             if (m.role === 'system') systemMsg += m.content + '\n';
             else convMessages.push(m);
         }
-        body = {
-            model: cfg.model,
-            max_tokens: maxTk,
-            temperature: cfg.temperature,
-            messages: convMessages,
-            stream: true  // 开启流式
-        };
+        body = { model: cfg.model, max_tokens: maxTk, temperature: cfg.temperature, messages: convMessages, stream: true };
         if (systemMsg) body.system = systemMsg.trim();
     } else {
         url = cfg.url.replace(/\/$/, '') + '/chat/completions';
         headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key };
-        body = {
-            model: cfg.model,
-            messages: messages,
-            temperature: cfg.temperature,
-            max_tokens: maxTk,
-            stream: true  // 开启流式
-        };
+        body = { model: cfg.model, messages: messages, temperature: cfg.temperature, max_tokens: maxTk, stream: true };
     }
 
     try {
@@ -182,7 +223,7 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop(); // 保留最后一行（可能不完整）
+            buffer = lines.pop(); 
 
             for (const line of lines) {
                 const trimmed = line.trim();
@@ -194,29 +235,18 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
                 try {
                     const json = JSON.parse(dataStr);
                     let chunk = '';
-
                     if (cfg.type === 'claude') {
-                        // Claude 流式格式
-                        if (json.type === 'content_block_delta' && json.delta && json.delta.text) {
-                            chunk = json.delta.text;
-                        }
+                        if (json.type === 'content_block_delta' && json.delta && json.delta.text) chunk = json.delta.text;
                     } else {
-                        // OpenAI 流式格式
-                        if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
-                            chunk = json.choices[0].delta.content;
-                        }
+                        if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) chunk = json.choices[0].delta.content;
                     }
-
                     if (chunk) {
                         fullText += chunk;
                         onChunk && onChunk(chunk, fullText);
                     }
-                } catch (e) {
-                    // 跳过解析失败的行
-                }
+                } catch (e) { }
             }
         }
-
         window.isRequesting = false;
         window._currentAbort = null;
         onDone && onDone(fullText);
@@ -224,19 +254,17 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
     } catch (err) {
         window.isRequesting = false;
         window._currentAbort = null;
-        if (err.name === 'AbortError') {
-            onDone && onDone(fullText || '');
-        } else {
-            onError && onError(err);
-        }
+        if (err.name === 'AbortError') onDone && onDone(fullText || '');
+        else onError && onError(err);
     }
 }
 
-// 测试连接按钮（短请求，不需要流式）
+// 测试连接按钮
 async function testApi() {
     const resultEl = document.getElementById('test-result');
     resultEl.className = 'test-result';
-
+    
+    // ... 省略，这部分保持不变 ... (为节省篇幅，这里用原逻辑即可)
     const config = {
         type: getApiType(),
         url: document.getElementById('api-url').value.trim(),

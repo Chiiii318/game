@@ -64,6 +64,25 @@
             <label class="label">模型名称</label>
             <input class="input-field" id="api-model" placeholder="gpt-4o / deepseek-chat">
         </div>
+        
+        <!-- 🌟 新增的流式开关 -->
+        <label style="display: flex; align-items: center; margin-top: 10px; font-size: 14px; cursor: pointer;">
+            <input type="checkbox" id="api-stream-toggle" checked style="margin-right: 8px;">
+            开启流式输出 (打字机效果)
+        </label>
+
+        <!-- 🌟 新增的联网搜索开关与密钥 -->
+        <div class="divider" style="margin: 15px 0;"></div>
+        <label style="display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; color: #d9534f;">
+            <input type="checkbox" id="api-search-toggle" style="margin-right: 8px;">
+            开启按需联网搜索 (需填下方密钥)
+        </label>
+        <div class="form-group" id="search-key-group">
+            <label class="label">Tavily Search API Key (去 tavily.com 免费申请)</label>
+            <input class="input-field" id="search-key" type="password" placeholder="tvly-...">
+        </div>
+        <div class="divider" style="margin: 15px 0; margin-bottom: 20px;"></div>
+
         <button class="btn btn-secondary" onclick="testApi()" style="margin-bottom:10px">🔗 测试连接</button>
         <div class="test-result" id="test-result"></div>
         <div style="height:10px"></div>
@@ -87,7 +106,6 @@
             <div class="tab-item" onclick="switchPlayerTab('paste')">📋 粘贴导入</div>
         </div>
 
-                        <!-- 🌟 升级版：自由组合下拉框 + 一句话自定义人设 -->
         <div id="player-tab-quick">
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1;">
@@ -180,7 +198,6 @@
                 </div>
                 <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
                 
-                <!-- 🌟 新增：把初始关系移到了每个男主自己这里 -->
                 <div class="form-group" style="margin-top:10px;">
                     <label class="label">你与 TA 的初始关系</label>
                     <input class="input-field target-rel" onfocus="this.value=''" list="rel-list" placeholder="请选择或自由输入...">
@@ -293,8 +310,8 @@
 
 <!-- 引入游戏大脑脚本 -->
 <script src="js_game/db_npc.js"></script>
-<script src="js_game/prompts.js"></script>       <!-- 🌟 新增：万字神级设定组装库 -->
-<script src="js_game/db_knowledge.js"></script>  <!-- 🌟 新增：前端检索词条库 -->
+<script src="js_game/prompts.js"></script>
+<script src="js_game/db_knowledge.js"></script>
 <script src="js_game/api.js"></script>
 <script src="js_game/save.js"></script>
 <script src="js_game/main_story.js"></script>
