@@ -72,12 +72,41 @@ B. 选项描述
 C. 选项描述
 
 ---PHONE_DATA---
-（JSON格式，仅生成轻量的通知摘要。具体的微博/抖音将在玩家点开APP时现编）
+（⚠️ 警告：绝对不可省略！必须生成合法的 JSON！必须根据剧情动态，决定哪个软件会产生数据。不要每次只生成微信和微博，请充分利用豆瓣吃瓜、小红书同款、抖音刷屏、B站二创、T-Family动态等全部生态！）
 {
-  "badges": {"wechat":1, "weibo":0, "douyin":0, "redbook":0, "bilibili":0, "douban":0, "imessage":0},
+  "badges": {
+    "wechat": 0, "weibo": 0, "douban": 0, "douyin": 0, "redbook": 0, "bilibili": 0, "tfamily": 0, "imessage": 0
+  },
   "notifications": [
-    {"app":"微信", "preview":"发送者名: 消息预览"}
-  ]
+    {"app": "豆瓣", "preview": "吃瓜基地：关于今天的热搜..."},
+    {"app": "小红书", "preview": "新发现：同款穿搭..."}
+  ],
+  "app_data": {
+    "wechat": [
+      // 微信聊天记录...
+    ],
+    "weibo": [
+      // 微博广场粉圈大乱斗...
+    ],
+    "douban": [
+      // 豆瓣八组吃瓜爆料帖...
+    ],
+    "douyin": [
+      // 抖音短视频弹幕与评论...
+    ],
+    "redbook": [
+      // 小红书同款打卡/生活方式帖...
+    ],
+    "bilibili": [
+      // B站二创视频剪辑弹幕...
+    ],
+    "tfamily": [
+      // 时代峰峻官方APP独家动态/物料评论...
+    ],
+    "imessage": [
+      // 极其私密的手机短信...
+    ]
+  }
 }
 
 ---DATA_UPDATE---

@@ -441,21 +441,27 @@ function parseAndRender(response) {
         });
     }
 
-    const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
-    if (pMatch) {
-        try {
-            const newPhoneData = JSON.parse(pMatch[1].trim());
-            if (!gameState.allPhoneData) gameState.allPhoneData = [];
-            const lastPD = gameState.allPhoneData[gameState.allPhoneData.length - 1];
-            if (JSON.stringify(lastPD) !== JSON.stringify(newPhoneData)) {
-                gameState.allPhoneData.push(newPhoneData);
-                let newBadgeCount = 0;
-                if(newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadgeCount += (v||0));
-                else newBadgeCount = newPhoneData.badge || 1;
-                gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadgeCount;
+            // 解析全平台手机数据 (JSON格式提取)
+        const pMatch = fullText.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+        if (pMatch) {
+            try {
+                const pData = JSON.parse(pMatch[1].trim());
+                // 1. 点亮所有有新消息的 APP 红点
+                if (pData.badges) updatePhoneBadges(pData.badges);
+                
+                // 2. 遍历所有 8 个平台，只要 AI 生成了数据，就分别存进各自的临时抽屉里！
+                if (pData.app_data) {
+                    const apps = ['wechat', 'weibo', 'douban', 'douyin', 'redbook', 'bilibili', 'tfamily', 'imessage'];
+                    apps.forEach(app => {
+                        if (pData.app_data[app] && pData.app_data[app].length > 0) {
+                            window.sessionStorage.setItem('current_' + app + '_data', JSON.stringify(pData.app_data[app]));
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('手机数据解析失败，可能是大模型输出的JSON格式不对', e);
             }
-        } catch (e) { console.error('手机数据解析失败', e); }
-    }
+        }
 
     const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
     if (dMatch) {
