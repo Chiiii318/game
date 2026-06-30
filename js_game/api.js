@@ -1,19 +1,19 @@
 // ══════════════════════════════════════
-// AI API 通信模块
+// AI API 通信模块（流式优化版）
 // ══════════════════════════════════════
 
 window.apiConfig = null;
 window.isRequesting = false;
+window._currentAbort = null; // 当前请求的 AbortController
 
 // 读取本地存的 API 配置
 function loadApiConfig() {
     const saved = localStorage.getItem('saosao_api_config');
     if (saved) {
         window.apiConfig = JSON.parse(saved);
-        if(document.getElementById('api-url')) document.getElementById('api-url').value = window.apiConfig.url || '';
-        if(document.getElementById('api-key')) document.getElementById('api-key').value = window.apiConfig.key || '';
-        if(document.getElementById('api-model')) document.getElementById('api-model').value = window.apiConfig.model || '';
-        // 恢复单选框状态
+        if (document.getElementById('api-url')) document.getElementById('api-url').value = window.apiConfig.url || '';
+        if (document.getElementById('api-key')) document.getElementById('api-key').value = window.apiConfig.key || '';
+        if (document.getElementById('api-model')) document.getElementById('api-model').value = window.apiConfig.model || '';
         document.querySelectorAll('#api-type-group .radio-item').forEach(i => {
             i.classList.toggle('active', i.dataset.val === window.apiConfig.type);
         });
@@ -42,15 +42,26 @@ function saveApiConfig() {
         maxTokens: 4096
     };
     if (!config.url || !config.key || !config.model) {
-        if(typeof showToast === 'function') showToast('请填写完整配置');
+        if (typeof showToast === 'function') showToast('请填写完整配置');
         return;
     }
     localStorage.setItem('saosao_api_config', JSON.stringify(config));
     window.apiConfig = config;
-    if(typeof showToast === 'function') showToast('配置已保存');
+    if (typeof showToast === 'function') showToast('配置已保存');
 }
 
-// 核心调用函数
+// 中断当前请求
+function abortCurrentRequest() {
+    if (window._currentAbort) {
+        window._currentAbort.abort();
+        window._currentAbort = null;
+    }
+    window.isRequesting = false;
+}
+
+// ──────────────────────────────────────
+// 核心调用函数（非流式，用于短请求）
+// ──────────────────────────────────────
 async function callAI(messages, configOverride, maxTokensOverride) {
     const cfg = configOverride || window.apiConfig;
     if (!cfg) throw new Error('未配置API');
@@ -87,18 +98,145 @@ async function callAI(messages, configOverride, maxTokensOverride) {
     }
 
     const data = await resp.json();
-    if (cfg.type === "claude") {
-        return (data.content && data.content[0] && data.content[0].text) || "";
+    if (cfg.type === 'claude') {
+        return (data.content && data.content[0] && data.content[0].text) || '';
     } else {
-        return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
+        return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
     }
 }
 
-// 测试连接按钮
+// ──────────────────────────────────────
+// 流式调用函数（用于游戏剧情生成）
+// onChunk(text)  : 每收到一段新文字时的回调
+// onDone(fullText): 全部完成时的回调
+// onError(err)   : 出错时的回调
+// ──────────────────────────────────────
+async function callAIStream(messages, { onChunk, onDone, onError, configOverride, maxTokensOverride } = {}) {
+    const cfg = configOverride || window.apiConfig;
+    if (!cfg) {
+        onError && onError(new Error('未配置API'));
+        return;
+    }
+
+    const maxTk = maxTokensOverride || cfg.maxTokens || 4096;
+    const abortCtrl = new AbortController();
+    window._currentAbort = abortCtrl;
+    window.isRequesting = true;
+
+    let url, headers, body;
+
+    if (cfg.type === 'claude') {
+        url = cfg.url.replace(/\/$/, '') + '/messages';
+        headers = {
+            'Content-Type': 'application/json',
+            'x-api-key': cfg.key,
+            'anthropic-version': '2023-06-01'
+        };
+        let systemMsg = '';
+        let convMessages = [];
+        for (const m of messages) {
+            if (m.role === 'system') systemMsg += m.content + '\n';
+            else convMessages.push(m);
+        }
+        body = {
+            model: cfg.model,
+            max_tokens: maxTk,
+            temperature: cfg.temperature,
+            messages: convMessages,
+            stream: true  // 开启流式
+        };
+        if (systemMsg) body.system = systemMsg.trim();
+    } else {
+        url = cfg.url.replace(/\/$/, '') + '/chat/completions';
+        headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key };
+        body = {
+            model: cfg.model,
+            messages: messages,
+            temperature: cfg.temperature,
+            max_tokens: maxTk,
+            stream: true  // 开启流式
+        };
+    }
+
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(body),
+            signal: abortCtrl.signal
+        });
+
+        if (!resp.ok) {
+            const errText = await resp.text().catch(() => '');
+            throw new Error('API错误 ' + resp.status + ': ' + errText.substring(0, 200));
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let fullText = '';
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // 保留最后一行（可能不完整）
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+                const dataStr = trimmed.slice(5).trim();
+                if (dataStr === '[DONE]') continue;
+
+                try {
+                    const json = JSON.parse(dataStr);
+                    let chunk = '';
+
+                    if (cfg.type === 'claude') {
+                        // Claude 流式格式
+                        if (json.type === 'content_block_delta' && json.delta && json.delta.text) {
+                            chunk = json.delta.text;
+                        }
+                    } else {
+                        // OpenAI 流式格式
+                        if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+                            chunk = json.choices[0].delta.content;
+                        }
+                    }
+
+                    if (chunk) {
+                        fullText += chunk;
+                        onChunk && onChunk(chunk, fullText);
+                    }
+                } catch (e) {
+                    // 跳过解析失败的行
+                }
+            }
+        }
+
+        window.isRequesting = false;
+        window._currentAbort = null;
+        onDone && onDone(fullText);
+
+    } catch (err) {
+        window.isRequesting = false;
+        window._currentAbort = null;
+        if (err.name === 'AbortError') {
+            onDone && onDone(fullText || '');
+        } else {
+            onError && onError(err);
+        }
+    }
+}
+
+// 测试连接按钮（短请求，不需要流式）
 async function testApi() {
     const resultEl = document.getElementById('test-result');
     resultEl.className = 'test-result';
-    
+
     const config = {
         type: getApiType(),
         url: document.getElementById('api-url').value.trim(),
