@@ -3,6 +3,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .phone { width: 100%; height: 100%; margin: 0; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 
 /* 状态栏 */
+:root { --statusbar-h: 48px; }
 .statusbar { display: flex; justify-content: space-between; align-items: center; padding: 0 22px; height: 48px; flex-shrink: 0; position: absolute; top: 0; left: 0; right: 0; z-index: 999; pointer-events: none; }
 .statusbar-time { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
 .statusbar-right { display: flex; align-items: center; gap: 6px; }
@@ -49,7 +50,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .lock-hint { text-align: center; font-size: 12px; color: rgba(255,255,255,0.3); padding: 10px 0 8px; }
 
 /* 桌面 */
-#screen-home { padding-top: 48px; }
+#screen-home { padding-top: var(--statusbar-h); }
 .home-bg { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: linear-gradient(170deg, #1a0a3e 0%, #0f1f4a 35%, #0a1628 70%, #0d0d1a 100%); }
 .home-bg::before { content:''; position: absolute; top:12%; left:8%; width:55%; height:40%; background: radial-gradient(ellipse, rgba(140,80,220,0.12), transparent 70%); }
 .home-bg::after { content:''; position: absolute; bottom:20%; right:5%; width:45%; height:35%; background: radial-gradient(ellipse, rgba(60,100,200,0.08), transparent 70%); }
@@ -70,7 +71,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .ic-im { background: #34c759; }
 
 /* 微信通用 */
-#screen-wechat { background: #fff; padding-top: 48px; width: 100%; }
+#screen-wechat { background: #fff; padding-top: var(--statusbar-h); width: 100%; }
 .wechat-container { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
 .wx-navbar { background: #fff; padding: 0 16px; display: flex; align-items: center; flex-shrink: 0; height: 44px; position: relative; }
 .wx-navbar-left { position: absolute; left: 16px; display: flex; align-items: center; gap: 4px; z-index: 2; }
@@ -78,7 +79,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-navbar-right { position: absolute; right: 16px; display: flex; align-items: center; gap: 16px; z-index: 2; }
 .wx-navbar-btn { cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; }
 .wx-search-bar { padding: 6px 16px 10px; background: #fff; flex-shrink: 0; }
-.wx-search-inner { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fff; border-radius: 6px; cursor: pointer; }
+.wx-search-inner { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #f0f0f0; border-radius: 6px; cursor: pointer; }
 .wx-search-inner span { font-size: 14px; color: #b0b0b0; }
 .wx-body { flex: 1; overflow-y: auto; }
 
@@ -97,7 +98,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; background: #ff3b30; border-radius: 9px; color: #fff; font-size: 11px; font-weight: 500; display: flex; align-items: center; justify-content: center; padding: 0 4px; z-index: 2; }
 .wx-chat-info { flex: 1; min-width: 0; }
 .wx-chat-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.wx-chat-name { font-size: 15px; color: #000; }
+.wx-chat-name { font-size: 15px; color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
 .wx-chat-time { font-size: 11px; color: #b8b8b8; }
 .wx-chat-preview { font-size: 13px; color: #b0b0b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -200,7 +201,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 
 /* 朋友圈 */
 .wx-moments-scroll { flex: 1; overflow-y: auto; background: #fff; }
-.wx-moments-cover { height: 240px; background: linear-gradient(150deg, #1a2a50, #2a3a60, #1a2040); position: relative; display: flex; align-items: flex-end; justify-content: flex-end; padding: 14px; cursor: pointer; }
+.wx-moments-cover { min-height: 180px; height: 35vh; max-height: 260px; background: linear-gradient(150deg, #1a2a50, #2a3a60, #1a2040); position: relative; display: flex; align-items: flex-end; justify-content: flex-end; padding: 14px; cursor: pointer; }
 .wx-moments-me { display: flex; align-items: center; gap: 10px; }
 .wx-moments-my-name { font-size: 16px; color: #fff; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
 .wx-moments-my-avatar { width: 60px; height: 60px; border-radius: 10px; background: #ff9eaa; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -766,6 +767,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
     20% { opacity: 1; }
     100% { opacity: 0.2; }
 }
+.wx-bubble.typing-dots { min-width: 50px; display: flex; align-items: center; justify-content: center; gap: 2px; }
 .typing-dots span {
     font-size: 24px;
     line-height: 10px;
@@ -776,3 +778,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 
 /* iOS安全区适配 */
 .wx-tabbar, .dy-tabbar, .xhs-tabbar, .db-tabbar { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* [fix #24] 隐藏滚动条 */
+.wx-body, .wechat-conversation, .wx-moments-scroll { scrollbar-width: none; }
+.wx-body::-webkit-scrollbar, .wechat-conversation::-webkit-scrollbar, .wx-moments-scroll::-webkit-scrollbar { display: none; }

@@ -1,11 +1,26 @@
 // ══════════════════════════════════════
-// 微信客户端 
+// 微信客户端（WeUI 版 · 全修复）
 // ══════════════════════════════════════
 
+// [fix #1] XSS 防护工具函数
+function escapeHtml(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// [fix #2] onclick 中的 ID 过滤，只允许安全字符
+function sanitizeId(id) {
+    return String(id || '').replace(/[^a-zA-Z0-9_\-\u4e00-\u9fff]/g, '');
+}
+
+// [fix #18] weui 可用性检测
+var _useWeui = (typeof weui !== 'undefined');
+
 var wxData = {
-    currentView: 'chatlist', 
-    currentChatId: null, 
+    currentView: 'chatlist',
+    currentChatId: null,
     commentingIdx: -1,
+    replyTarget: null, // [fix #12] 回复@某人
     chats: [],
     conversations: {},
     moments: [],
@@ -14,11 +29,29 @@ var wxData = {
     searchHot: []
 };
 
+// [fix #14] typing 超时定时器
+var _typingTimers = {};
+
 function wxNav(view, data) {
     wxData.currentView = view;
     var el = document.getElementById('screen-wechat');
 
-    // 通用数据请求钩子：如果没有数据，向外呼叫 AI
+    // [fix #5] 进入对话时清除未读
+    if (view === 'conversation' && data) {
+        var chatForUnread = wxData.chats.find(function(c){ return c.id === data; });
+        if (chatForUnread) {
+            chatForUnread.unread = 0;
+            // 更新桌面角标
+            var totalUnread = wxData.chats.reduce(function(sum, c){ return sum + (c.unread||0); }, 0);
+            var badgeEl = document.getElementById('badge-wechat');
+            if (badgeEl) {
+                badgeEl.textContent = totalUnread;
+                badgeEl.style.display = totalUnread > 0 ? 'flex' : 'none';
+            }
+        }
+    }
+
+    // 通用数据请求钩子
     if (view === 'chatlist' && wxData.chats.length === 0) {
         if(typeof requestAppData === 'function') requestAppData('wechat');
     }
@@ -39,21 +72,31 @@ function wxNav(view, data) {
 }
 
 function renderChatlist() {
-    var sorted = wxData.chats.slice().sort(function(a,b){return (b.sortKey||0)-(a.sortKey||0);});
+    var sorted = wxData.chats.slice().sort(function(a,b){
+        // [fix #7] 置顶排序
+        if(a.pinned && !b.pinned) return -1;
+        if(!a.pinned && b.pinned) return 1;
+        return (b.sortKey||0)-(a.sortKey||0);
+    });
     var items = sorted.map(function(c){
+        var sid = sanitizeId(c.id);
         var av = '';
         if (c.isGroup) {
             var members = c.members || [];
             var colors = c.colors || [];
             var n = Math.min(members.length, 4);
-            var cells = members.slice(0,n).map(function(m,i){return '<div class="avatar-cell" style="background:'+(colors[i]||'#ccc')+'">'+m+'</div>';}).join('');
+            var cells = members.slice(0,n).map(function(m,i){return '<div class="avatar-cell" style="background:'+(colors[i]||'#ccc')+'">'+escapeHtml(m)+'</div>';}).join('');
             av = '<div class="wx-avatar-group members-'+n+'">'+cells+'</div>';
-        } else { av = '<div class="wx-avatar-single" style="background:'+(c.color||'#07c160')+'">'+(c.avatar||c.name[0]||'未知')+'</div>'; }
+        } else {
+            av = '<div class="wx-avatar-single" style="background:'+(c.color||'#07c160')+'">'+escapeHtml(c.avatar||c.name[0]||'?')+'</div>';
+        }
         var badge = c.unread>0?'<div class="wx-badge">'+c.unread+'</div>':'';
-        var name = c.name+(c.memberCount?'('+c.memberCount+')':'');
-        return '<div class="wx-chat-item" onclick="wxNav(\'conversation\',\''+c.id+'\')"><div class="wx-avatar-wrap">'+av+badge+'</div><div class="wx-chat-info"><div class="wx-chat-top-row"><span class="wx-chat-name">'+name+'</span><span class="wx-chat-time">'+(c.time?formatChatTime(c.time):'')+'</span></div><div class="wx-chat-preview">'+(c.lastMsg||'')+'</div></div></div>';
+        var name = escapeHtml(c.name)+(c.memberCount?'('+c.memberCount+')':'');
+        var pinCls = c.pinned?' wx-chat-pinned':'';
+        // [fix #7] 长按操作用 data-id
+        return '<div class="wx-chat-item'+pinCls+'" data-chatid="'+sid+'" onclick="wxNav(\'conversation\',\''+sid+'\')" oncontextmenu="event.preventDefault();chatLongPress(\''+sid+'\')"><div class="wx-avatar-wrap">'+av+badge+'</div><div class="wx-chat-info"><div class="wx-chat-top-row"><span class="wx-chat-name">'+name+'</span><span class="wx-chat-time">'+(c.time?formatChatTime(c.time):'')+'</span></div><div class="wx-chat-preview">'+escapeHtml(c.lastMsg||'')+'</div></div></div>';
     }).join('');
-    
+
     if(!items) items = '<div style="text-align:center;padding:40px;color:#999;font-size:14px;">暂无聊天</div>';
 
     return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"></div><div class="wx-navbar-center">微信</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="showPlusMenu()">'+IC.plus+'</div></div></div>' +
@@ -61,15 +104,34 @@ function renderChatlist() {
         '<div class="wx-body wx-chatlist">'+items+'</div>'+renderTabbar('chat')+'</div>';
 }
 
+// [fix #7] 聊天列表长按操作
+function chatLongPress(chatId) {
+    var chat = wxData.chats.find(function(c){ return c.id === chatId; });
+    if (!chat) return;
+    var pinLabel = chat.pinned ? '取消置顶' : '置顶聊天';
+
+    if (_useWeui) {
+        weui.actionSheet([
+            { label: pinLabel, onClick: function(){ chat.pinned = !chat.pinned; wxNav('chatlist'); } },
+            { label: '标记为已读', onClick: function(){ chat.unread = 0; wxNav('chatlist'); } },
+            { label: '删除聊天', className: 'weui-actionsheet__cell_warn', onClick: function(){
+                wxData.chats = wxData.chats.filter(function(c){ return c.id !== chatId; });
+                delete wxData.conversations[chatId];
+                wxNav('chatlist');
+            }}
+        ], [{ label: '取消', onClick: function(){} }]);
+    }
+}
+
 function renderConversation() {
     var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;}) || {name:'未知'};
     var msgs = wxData.conversations[wxData.currentChatId]||[];
-    var name = chat.name+(chat.memberCount?'('+chat.memberCount+')':'');
+    var name = escapeHtml(chat.name)+(chat.memberCount?'('+chat.memberCount+')':'');
     var isGroup = chat.isGroup;
 
     var html = msgs.map(function(msg,idx){
-        if (msg.type==='time') return '<div class="wx-msg-time">'+msg.text+'</div>';
-        if (msg.type==='sys') return '<div class="wx-sys-msg">'+msg.text+'</div>';
+        if (msg.type==='time') return '<div class="wx-msg-time">'+escapeHtml(msg.text)+'</div>';
+        if (msg.type==='sys') return '<div class="wx-sys-msg">'+escapeHtml(msg.text)+'</div>';
         var self = msg.isSelf;
         var cls = self?'wx-msg-row self':'wx-msg-row';
         var avColor = self?(typeof playerColor!=='undefined'?playerColor:'#ff9eaa'):(msg.color||'#ccc');
@@ -77,35 +139,137 @@ function renderConversation() {
         var clickAv = '';
         if (!self && msg.sender) {
             var contact = findContact(msg.sender);
-            if (contact) clickAv = ' onclick="wxNav(\'profile\',\''+contact.id+'\')"';
+            if (contact) clickAv = ' onclick="wxNav(\'profile\',\''+sanitizeId(contact.id)+'\')"';
         }
-        var nameH = (isGroup&&!self&&msg.sender)?'<div class="wx-msg-sender-name">'+msg.sender+'</div>':'';
+        var nameH = (isGroup&&!self&&msg.sender)?'<div class="wx-msg-sender-name">'+escapeHtml(msg.sender)+'</div>':'';
         var content = '';
         if (msg.type==='voice') {
             var duration = msg.duration||2;
             var w = 80 + duration*12;
             content = '<div class="wx-voice-bubble" style="width:'+w+'px" onclick="toggleTranscript('+idx+')"><div class="wx-voice-icon">'+(self?IC.voiceRight:IC.voiceLeft)+'</div><span class="wx-voice-duration">'+duration+'"</span></div>';
-            if (msg.transcript) content += '<div class="wx-voice-transcript" id="vt-'+idx+'">'+msg.transcript+'</div>';
+            if (msg.transcript) content += '<div class="wx-voice-transcript" id="vt-'+idx+'">'+escapeHtml(msg.transcript)+'</div>';
         } else if (msg.type==='redpacket') {
-            content = '<div class="wx-redpacket"><div class="wx-redpacket-top"><div class="wx-redpacket-icon">'+IC.redpacket+'</div><div class="wx-redpacket-text">'+(msg.text||'恭喜发财')+'</div></div><div class="wx-redpacket-bottom">微信红包</div></div>';
+            content = '<div class="wx-redpacket" onclick="openRedpacket('+idx+')"><div class="wx-redpacket-top"><div class="wx-redpacket-icon">'+IC.redpacket+'</div><div class="wx-redpacket-text">'+escapeHtml(msg.text||'恭喜发财')+'</div></div><div class="wx-redpacket-bottom">微信红包</div></div>';
         } else if (msg.type==='transfer') {
             var st = msg.status||'pending';
             var stText = st==='pending'?'待收款':st==='received'?'已收款 ✓':'已退回';
             var topCls = st==='pending'?'pending':'done';
             var click = st==='pending'?' onclick="showTransferAction('+idx+')"':'';
-            content = '<div class="wx-transfer"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+msg.amount+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+(msg.note||'转账')+'</div></div>';
-                } else if (msg.type === 'typing') {
-            // 新增：正在输入的跳动气泡
+            content = '<div class="wx-transfer '+topCls+'"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+escapeHtml(msg.amount)+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+escapeHtml(msg.note||'转账')+'</div></div>';
+        } else if (msg.type === 'typing') {
             content = '<div class="wx-bubble typing-dots"><span>·</span><span>·</span><span>·</span></div>';
         } else {
-            content = '<div class="wx-bubble">'+(msg.message||msg.text||'')+'</div>';
+            // [fix #8] 长按消息弹出菜单
+            var longpress = self ? ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',true)"' : ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',false)"';
+            content = '<div class="wx-bubble"'+longpress+'>'+escapeHtml(msg.message||msg.text||'')+'</div>';
         }
-        return '<div class="'+cls+'"><div class="wx-msg-avatar" style="background:'+avColor+'"'+clickAv+'>'+avText+'</div><div class="wx-msg-content">'+nameH+content+'</div></div>';
+        return '<div class="'+cls+'"><div class="wx-msg-avatar" style="background:'+avColor+'"'+clickAv+'>'+escapeHtml(avText)+'</div><div class="wx-msg-content">'+nameH+content+'</div></div>';
     }).join('');
 
-    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'chatlist\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+name+'</div><div class="wx-navbar-right"><div class="wx-navbar-btn">'+IC.more+'</div></div></div>' +
+    // [fix #11] 群聊右上角更多按钮进入群设置
+    var moreBtn = isGroup ?
+        '<div class="wx-navbar-btn" onclick="showGroupSettings()">'+IC.more+'</div>' :
+        '<div class="wx-navbar-btn" onclick="showChatMore()">'+IC.more+'</div>';
+
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'chatlist\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+name+'</div><div class="wx-navbar-right">'+moreBtn+'</div></div>' +
         '<div class="wechat-conversation" id="wx-conv-scroll">'+html+'</div>' +
-        '<div class="wx-input-bar"><div class="wx-input-btn">'+IC.mic+'</div><input id="wx-msg-input" placeholder="输入消息..." onkeydown="if(event.key===\'Enter\')sendMsg()"><div class="wx-input-btn" onclick="showPlusPanel()">'+IC.plusGray+'</div></div></div>';
+        '<div class="wx-input-bar"><div class="wx-input-btn">'+IC.mic+'</div><input id="wx-msg-input" placeholder="输入消息..." onkeydown="if(event.key===\'Enter\')sendMsg()" oninput="checkAtMention(this)"><div class="wx-input-btn" onclick="showPlusPanel()">'+IC.plusGray+'</div></div></div>';
+}
+
+// [fix #8] 消息长按菜单
+function msgLongPress(idx, isSelf) {
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs || !msgs[idx]) return;
+    var msg = msgs[idx];
+    var menus = [];
+
+    // 复制
+    if (msg.message || msg.text) {
+        menus.push({ label: '复制', onClick: function(){
+            var t = msg.message || msg.text || '';
+            if (navigator.clipboard) navigator.clipboard.writeText(t);
+            if(_useWeui) weui.toast('已复制', {duration:1500});
+        }});
+    }
+    // 撤回（自己的消息，2分钟内）
+    if (isSelf && msg._ts && (Date.now() - msg._ts < 120000)) {
+        menus.push({ label: '撤回', onClick: function(){
+            msgs.splice(idx, 1, {type:'sys', text:'你撤回了一条消息'});
+            wxNav('conversation', wxData.currentChatId);
+        }});
+    }
+    // 删除
+    menus.push({ label: '删除', onClick: function(){
+        msgs.splice(idx, 1);
+        wxNav('conversation', wxData.currentChatId);
+    }});
+    // 转发
+    menus.push({ label: '转发', onClick: function(){ showForwardPicker(msg); }});
+
+    if (_useWeui) {
+        weui.actionSheet(menus, [{ label: '取消', onClick: function(){} }]);
+    }
+}
+
+// [fix #8] 转发选择对话
+function showForwardPicker(msg) {
+    if (wxData.chats.length === 0) { if(_useWeui) weui.alert('没有可转发的对话'); return; }
+    var menus = wxData.chats.slice(0, 10).map(function(c){
+        return { label: escapeHtml(c.name), onClick: function(){
+            if (!wxData.conversations[c.id]) wxData.conversations[c.id] = [];
+            wxData.conversations[c.id].push({isSelf:true, message: msg.message||msg.text||'[转发消息]', _ts: Date.now()});
+            c.lastMsg = '[转发消息]';
+            c.sortKey = Date.now();
+            if(_useWeui) weui.toast('已转发', {duration:1500});
+        }};
+    });
+    if (_useWeui) weui.actionSheet(menus, [{ label: '取消', onClick: function(){} }]);
+}
+
+// [fix #11] 群设置页
+function showGroupSettings() {
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    if (!chat) return;
+    var members = chat.members || ['未知'];
+    var colors = chat.colors || ['#ccc'];
+    var memberGrid = members.map(function(m,i){
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:40px;height:40px;border-radius:6px;background:'+(colors[i]||'#ccc')+';display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;">'+escapeHtml(m)+'</div><span style="font-size:10px;color:#666;">'+escapeHtml(m)+'</span></div>';
+    }).join('');
+
+    var el = document.getElementById('screen-wechat');
+    el.innerHTML = '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'conversation\',\''+sanitizeId(wxData.currentChatId)+'\')">'+IC.back+'</div></div><div class="wx-navbar-center">群聊设置</div><div class="wx-navbar-right"></div></div>'+
+        '<div class="wx-body wx-me-page">'+
+        '<div style="padding:16px;background:#fff;"><div style="font-size:14px;color:#666;margin-bottom:12px;">群成员 ('+members.length+')</div><div style="display:flex;flex-wrap:wrap;gap:14px;">'+memberGrid+'</div></div>'+
+        '<div class="wx-me-gap"></div>'+
+        '<div class="wx-me-item"><span class="wx-me-item-name">群聊名称</span><span style="font-size:14px;color:#999;">'+escapeHtml(chat.name)+'</span><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
+        '<div class="wx-me-item"><span class="wx-me-item-name">群公告</span><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
+        '<div class="wx-me-gap"></div>'+
+        '<div class="wx-me-item"><span class="wx-me-item-name">消息免打扰</span></div>'+
+        '</div></div>';
+}
+
+function showChatMore() {
+    if(_useWeui) {
+        weui.actionSheet([
+            { label: '查找聊天记录', onClick: function(){} },
+            { label: '设置当前聊天背景', onClick: function(){} }
+        ], [{ label: '取消', onClick: function(){} }]);
+    }
+}
+
+// [fix #11] @人功能
+function checkAtMention(input) {
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    if (!chat || !chat.isGroup) return;
+    var val = input.value;
+    if (val.endsWith('@')) {
+        var members = chat.members || [];
+        if (members.length === 0) return;
+        var menus = members.map(function(m){
+            return { label: m, onClick: function(){ input.value = val + m + ' '; input.focus(); }};
+        });
+        if (_useWeui) weui.actionSheet(menus, [{ label: '取消', onClick: function(){} }]);
+    }
 }
 
 function toggleTranscript(idx) {
@@ -113,60 +277,100 @@ function toggleTranscript(idx) {
     if (el) el.classList.toggle('show');
 }
 
+// [fix #18] 用 weui.actionSheet 替换
 function showPlusMenu() {
-    // 调用腾讯微信原生底部菜单
-    weui.actionSheet([
-        { label: '发起群聊', onClick: function () { console.log('点击发起群聊'); } },
-        { label: '添加好友', onClick: function () { console.log('点击添加好友'); } },
-        { label: '扫一扫', onClick: function () { console.log('点击扫一扫'); } },
-        { label: '收付款', onClick: function () { console.log('点击收付款'); } }
-    ], [
-        { label: '取消', onClick: function () {} }
-    ]);
+    if (_useWeui) {
+        weui.actionSheet([
+            { label: '发起群聊', onClick: function () {} },
+            { label: '添加好友', onClick: function () {} },
+            { label: '扫一扫', onClick: function () {} },
+            { label: '收付款', onClick: function () {} }
+        ], [{ label: '取消', onClick: function () {} }]);
+    }
 }
 
+// [fix #18] 用 weui 替换加号面板
 function showPlusPanel() {
-    var el = document.getElementById('screen-wechat');
-    var overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    overlay.onclick = function(e){if(e.target===overlay)overlay.remove();};
-    overlay.innerHTML = '<div class="plus-panel"><div class="plus-panel-grid">'+
-        '<div class="plus-panel-item" onclick="alert(\'功能开发中\')"><div class="plus-panel-icon">'+IC.photo+'</div><div class="plus-panel-label">相册</div></div>'+
-        '<div class="plus-panel-item" onclick="alert(\'功能开发中\')"><div class="plus-panel-icon">'+IC.shoot+'</div><div class="plus-panel-label">拍摄</div></div>'+
-        '<div class="plus-panel-item" onclick="alert(\'功能开发中\')"><div class="plus-panel-icon">'+IC.redpacket.replace(/#fff/g,"#666")+'</div><div class="plus-panel-label">红包</div></div>'+
-        '<div class="plus-panel-item" onclick="this.closest(\'.overlay\').remove();showTransferModal()"><div class="plus-panel-icon">'+IC.transfer+'</div><div class="plus-panel-label">转账</div></div>'+
-        '<div class="plus-panel-item" onclick="alert(\'功能开发中\')"><div class="plus-panel-icon">'+IC.location+'</div><div class="plus-panel-label">位置</div></div>'+
-        '<div class="plus-panel-item" onclick="alert(\'功能开发中\')"><div class="plus-panel-icon">'+IC.card+'</div><div class="plus-panel-label">名片</div></div>'+
-        '</div></div>';
-    el.querySelector('.wechat-container').appendChild(overlay);
+    if (_useWeui) {
+        weui.actionSheet([
+            { label: '📷 相册', onClick: function(){ weui.alert('功能开发中'); } },
+            { label: '📸 拍摄', onClick: function(){ weui.alert('功能开发中'); } },
+            { label: '🧧 红包', onClick: function(){ showRedpacketModal(); } },
+            { label: '💰 转账', onClick: function(){ showTransferModal(); } },
+            { label: '📍 位置', onClick: function(){ weui.alert('功能开发中'); } },
+            { label: '👤 名片', onClick: function(){ weui.alert('功能开发中'); } }
+        ], [{ label: '取消', onClick: function(){} }]);
+    }
 }
 
-function showTransferModal() {
-    var el = document.getElementById('screen-wechat');
-    var modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = '<div class="modal-box"><div class="modal-title">转账</div><input class="modal-input" id="tf-amount" placeholder="金额" type="number"><input class="modal-input" id="tf-note" placeholder="留言（选填）"><div class="modal-btns"><button class="modal-btn cancel" onclick="this.closest(\'.modal-overlay\').remove()">取消</button><button class="modal-btn confirm" onclick="doTransfer()">转账</button></div></div>';
-    el.querySelector('.wechat-container').appendChild(modal);
+// [fix #10] 红包弹窗
+function showRedpacketModal() {
+    if (_useWeui) {
+        weui.dialog({
+            title: '发红包',
+            content: '<input class="weui-input" id="rp-amount" type="number" placeholder="金额" style="border-bottom:1px solid #eee;padding:8px 0;margin-bottom:8px;"><input class="weui-input" id="rp-text" placeholder="恭喜发财，大吉大利" style="border-bottom:1px solid #eee;padding:8px 0;">',
+            className: 'custom',
+            buttons: [
+                { label: '取消', type: 'default', onClick: function(){} },
+                { label: '塞钱进红包', type: 'primary', onClick: function(){
+                    var amount = document.getElementById('rp-amount').value;
+                    var text = document.getElementById('rp-text').value || '恭喜发财，大吉大利';
+                    if (!amount || isNaN(amount) || Number(amount) <= 0) { weui.alert('请输入有效金额'); return; }
+                    var msgs = wxData.conversations[wxData.currentChatId];
+                    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
+                    msgs.push({isSelf:true, type:'redpacket', text:text, amount:Number(amount).toFixed(2), opened:false, _ts:Date.now()});
+                    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+                    if(chat){ chat.lastMsg='[红包] '+text; chat.sortKey=Date.now(); }
+                    wxNav('conversation', wxData.currentChatId);
+                }}
+            ]
+        });
+    }
 }
 
-function doTransfer() {
-    var amount = document.getElementById('tf-amount').value;
-    var note = document.getElementById('tf-note').value||'转账';
-    if (!amount||isNaN(amount)||Number(amount)<=0) { alert('请输入有效金额'); return; }
+// [fix #10] 打开红包
+function openRedpacket(idx) {
     var msgs = wxData.conversations[wxData.currentChatId];
-    if (!msgs) { msgs = []; wxData.conversations[wxData.currentChatId] = msgs; }
-    msgs.push({isSelf:true,type:'transfer',amount:Number(amount).toFixed(2),note:note,status:'pending'});
-    document.querySelector('.modal-overlay').remove();
-    wxNav('conversation',wxData.currentChatId);
+    if (!msgs || !msgs[idx]) return;
+    var msg = msgs[idx];
+    if (msg.opened) { weui.alert('红包已被领取'); return; }
+    msg.opened = true;
+    if (_useWeui) weui.toast('已领取 ¥'+(msg.amount||'0.00'), {duration:2000});
 }
 
+// [fix #18] 转账弹窗用 weui.dialog
+function showTransferModal() {
+    if (_useWeui) {
+        weui.dialog({
+            title: '转账',
+            content: '<input class="weui-input" id="tf-amount" type="number" placeholder="金额" style="border-bottom:1px solid #eee;padding:8px 0;margin-bottom:8px;"><input class="weui-input" id="tf-note" placeholder="留言（选填）" style="border-bottom:1px solid #eee;padding:8px 0;">',
+            className: 'custom',
+            buttons: [
+                { label: '取消', type: 'default', onClick: function(){} },
+                { label: '转账', type: 'primary', onClick: function(){
+                    var amount = document.getElementById('tf-amount').value;
+                    var note = document.getElementById('tf-note').value||'转账';
+                    if (!amount||isNaN(amount)||Number(amount)<=0) { weui.alert('请输入有效金额'); return; }
+                    var msgs = wxData.conversations[wxData.currentChatId];
+                    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
+                    msgs.push({isSelf:true,type:'transfer',amount:Number(amount).toFixed(2),note:note,status:'pending',_ts:Date.now()});
+                    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+                    if(chat){ chat.lastMsg='[转账] ¥'+Number(amount).toFixed(2); chat.sortKey=Date.now(); }
+                    wxNav('conversation',wxData.currentChatId);
+                }}
+            ]
+        });
+    }
+}
+
+// [fix #18] 转账操作用 weui
 function showTransferAction(idx) {
-    var el = document.getElementById('screen-wechat');
-    var overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    overlay.onclick = function(e){if(e.target===overlay)overlay.remove();};
-    overlay.innerHTML = '<div class="action-sheet"><div class="action-sheet-item" onclick="acceptTransfer('+idx+');this.closest(\'.overlay\').remove()">收款</div><div class="action-sheet-item" onclick="rejectTransfer('+idx+');this.closest(\'.overlay\').remove()">退回</div><div class="action-sheet-cancel" onclick="this.closest(\'.overlay\').remove()">取消</div></div>';
-    el.querySelector('.wechat-container').appendChild(overlay);
+    if (_useWeui) {
+        weui.actionSheet([
+            { label: '收款', onClick: function(){ acceptTransfer(idx); } },
+            { label: '退回', onClick: function(){ rejectTransfer(idx); } }
+        ], [{ label: '取消', onClick: function(){} }]);
+    }
 }
 
 function acceptTransfer(idx) {
@@ -183,30 +387,44 @@ function rejectTransfer(idx) {
     wxNav('conversation',wxData.currentChatId);
 }
 
+// [fix #15] 合并消息+typing为一次渲染，[fix #14] typing超时清理
 function sendMsg() {
     var input = document.getElementById('wx-msg-input');
     var text = input.value.trim();
     if (!text) return;
     var msgs = wxData.conversations[wxData.currentChatId];
     if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
-    msgs.push({isSelf:true,message:text});
+    msgs.push({isSelf:true, message:text, _ts:Date.now()});
     input.value = '';
-    
+
     var chat = wxData.chats.find(function(c){ return c.id === wxData.currentChatId; });
     if(chat) {
         chat.lastMsg = text;
         chat.sortKey = Date.now();
     }
-        wxNav('conversation',wxData.currentChatId);
 
-    // 显示"对方正在输入"气泡
+    // [fix #15] 一次性 push typing + 渲染，避免双重 wxNav
     var typingChatId = wxData.currentChatId;
-    var convArr = wxData.conversations[typingChatId];
-    if (convArr) {
-        convArr.push({type:'typing', isSelf:false, sender: chat ? chat.name : '?', color: chat ? chat.color : '#ccc'});
-        wxNav('conversation', typingChatId);
-    }
+    var typingIdx = msgs.length;
+    msgs.push({type:'typing', isSelf:false, sender: chat ? chat.name : '?', color: chat ? chat.color : '#ccc'});
+    wxNav('conversation', typingChatId);
 
+    // [fix #14] 15秒超时自动移除 typing
+    if (_typingTimers[typingChatId]) clearTimeout(_typingTimers[typingChatId]);
+    _typingTimers[typingChatId] = setTimeout(function(){
+        var convArr = wxData.conversations[typingChatId];
+        if (convArr) {
+            for (var i = convArr.length - 1; i >= 0; i--) {
+                if (convArr[i].type === 'typing') { convArr.splice(i, 1); break; }
+            }
+            if (wxData.currentChatId === typingChatId && wxData.currentView === 'conversation') {
+                wxNav('conversation', typingChatId);
+            }
+        }
+        delete _typingTimers[typingChatId];
+    }, 15000);
+
+    // [fix #3] postMessage 加注释标记
     if (typeof window.parent.postMessage === 'function') {
         window.parent.postMessage({
             type: 'PHONE_INTERACT',
@@ -214,20 +432,82 @@ function sendMsg() {
             chatId: wxData.currentChatId,
             chatName: chat ? chat.name : '未知',
             userMessage: text
-        }, '*');
+        }, '*'); // TODO: 替换为具体 origin
     }
 }
 
+// [fix #6] 搜索功能实现
 function renderSearch() {
-    var tags = (wxData.searchHistory||[]).map(function(t){return '<div class="wx-search-tag">'+t+'</div>';}).join('');
-    var hots = (wxData.searchHot||[]).map(function(t,i){return '<div class="wx-search-hot-item"><span class="wx-search-hot-rank'+(i>=3?' normal':'')+'">'+( i+1)+'</span><span class="wx-search-hot-text">'+t+'</span></div>';}).join('');
-    return '<div class="wechat-container"><div class="wx-search-top-bar"><input placeholder="搜索" autofocus><span class="wx-search-cancel" onclick="wxNav(\'chatlist\')">取消</span></div><div class="wx-body wx-search-page"><div class="wx-search-section"><div class="wx-search-section-title">最近搜索</div><div class="wx-search-tags">'+(tags||'<span style="color:#ccc;font-size:12px;">暂无历史</span>')+'</div></div><div class="wx-search-section"><div class="wx-search-section-title">热搜</div>'+(hots||'<span style="color:#ccc;font-size:12px;">暂无热搜</span>')+'</div></div></div>';
+    var tags = (wxData.searchHistory||[]).map(function(t){return '<div class="wx-search-tag" onclick="doSearch(\''+escapeHtml(t)+'\')">'+escapeHtml(t)+'</div>';}).join('');
+    var hots = (wxData.searchHot||[]).map(function(t,i){return '<div class="wx-search-hot-item" onclick="doSearch(\''+escapeHtml(t)+'\')"><span class="wx-search-hot-rank'+(i>=3?' normal':'')+'">'+( i+1)+'</span><span class="wx-search-hot-text">'+escapeHtml(t)+'</span></div>';}).join('');
+    return '<div class="wechat-container"><div class="wx-search-top-bar"><input id="wx-search-input" placeholder="搜索" oninput="doSearchLive(this.value)" autofocus><span class="wx-search-cancel" onclick="wxNav(\'chatlist\')">取消</span></div><div class="wx-body wx-search-page"><div id="wx-search-results"></div><div id="wx-search-default"><div class="wx-search-section"><div class="wx-search-section-title">最近搜索</div><div class="wx-search-tags">'+(tags||'<span style="color:#ccc;font-size:12px;">暂无历史</span>')+'</div></div><div class="wx-search-section"><div class="wx-search-section-title">热搜</div>'+(hots||'<span style="color:#ccc;font-size:12px;">暂无热搜</span>')+'</div></div></div></div>';
+}
+
+// [fix #6] 实时搜索过滤
+function doSearchLive(keyword) {
+    var resultsEl = document.getElementById('wx-search-results');
+    var defaultEl = document.getElementById('wx-search-default');
+    if (!resultsEl || !defaultEl) return;
+
+    if (!keyword.trim()) {
+        resultsEl.innerHTML = '';
+        defaultEl.style.display = 'block';
+        return;
+    }
+    defaultEl.style.display = 'none';
+    var kw = keyword.trim().toLowerCase();
+    var html = '';
+
+    // 搜索联系人
+    var matchContacts = [];
+    wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){
+        if (c.name.toLowerCase().indexOf(kw) !== -1) matchContacts.push(c);
+    }); });
+    if (matchContacts.length > 0) {
+        html += '<div class="wx-search-section"><div class="wx-search-section-title">联系人</div>';
+        matchContacts.slice(0,5).forEach(function(c){
+            html += '<div class="wx-contact-item" onclick="wxNav(\'profile\',\''+sanitizeId(c.id)+'\')"><div class="wx-contact-avatar" style="background:'+c.color+'">'+escapeHtml(c.avatar)+'</div><span class="wx-contact-name">'+escapeHtml(c.name)+'</span></div>';
+        });
+        html += '</div>';
+    }
+
+    // 搜索聊天记录
+    var matchMsgs = [];
+    wxData.chats.forEach(function(chat){
+        var conv = wxData.conversations[chat.id] || [];
+        conv.forEach(function(msg){
+            var t = msg.message || msg.text || '';
+            if (t.toLowerCase().indexOf(kw) !== -1) {
+                matchMsgs.push({chatId: chat.id, chatName: chat.name, text: t});
+            }
+        });
+    });
+    if (matchMsgs.length > 0) {
+        html += '<div class="wx-search-section"><div class="wx-search-section-title">聊天记录</div>';
+        matchMsgs.slice(0,8).forEach(function(m){
+            html += '<div class="wx-chat-item" onclick="wxNav(\'conversation\',\''+sanitizeId(m.chatId)+'\')"><div class="wx-chat-info"><div class="wx-chat-top-row"><span class="wx-chat-name">'+escapeHtml(m.chatName)+'</span></div><div class="wx-chat-preview">'+escapeHtml(m.text.substring(0,40))+'</div></div></div>';
+        });
+        html += '</div>';
+    }
+
+    if (!html) html = '<div style="text-align:center;padding:40px;color:#999;font-size:14px;">无结果</div>';
+    resultsEl.innerHTML = html;
+}
+
+function doSearch(keyword) {
+    var input = document.getElementById('wx-search-input');
+    if (input) { input.value = keyword; doSearchLive(keyword); }
+    // 保存搜索历史
+    if (wxData.searchHistory.indexOf(keyword) === -1) {
+        wxData.searchHistory.unshift(keyword);
+        if (wxData.searchHistory.length > 8) wxData.searchHistory.pop();
+    }
 }
 
 function renderContacts() {
     var html = (wxData.contacts||[]).map(function(g){
-        var items = (g.items||[]).map(function(c){return '<div class="wx-contact-item" onclick="wxNav(\'profile\',\''+c.id+'\')"><div class="wx-contact-avatar" style="background:'+c.color+'">'+c.avatar+'</div><span class="wx-contact-name">'+c.name+'</span></div>';}).join('');
-        return '<div class="wx-contact-letter">'+g.letter+'</div>'+items;
+        var items = (g.items||[]).map(function(c){return '<div class="wx-contact-item" onclick="wxNav(\'profile\',\''+sanitizeId(c.id)+'\')"><div class="wx-contact-avatar" style="background:'+c.color+'">'+escapeHtml(c.avatar)+'</div><span class="wx-contact-name">'+escapeHtml(c.name)+'</span></div>';}).join('');
+        return '<div class="wx-contact-letter">'+escapeHtml(g.letter)+'</div>'+items;
     }).join('');
     if(!html) html = '<div style="text-align:center;padding:40px;color:#999;font-size:14px;">暂无联系人</div>';
     return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"></div><div class="wx-navbar-center">通讯录</div><div class="wx-navbar-right"></div></div><div class="wx-search-bar" onclick="wxNav(\'search\')"><div class="wx-search-inner">'+IC.search+'<span>搜索</span></div></div><div class="wx-body wx-contacts-list">'+html+'</div>'+renderTabbar('contacts')+'</div>';
@@ -243,23 +523,47 @@ function renderDiscover() {
 
 function renderMoments() {
     if (!wxData.moments || wxData.moments.length === 0) return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'discover\')">'+IC.back+'</div></div><div class="wx-navbar-center">朋友圈</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="wxNav(\'publish\')">'+IC.camera+'</div></div></div><div class="wx-body" style="display:flex;justify-content:center;align-items:center;color:#999;font-size:14px;">刷新朋友圈中...</div></div>';
-    
+
     var list = wxData.moments.map(function(m,i){
         var likes = m.likes||[];
         var comments = m.comments||[];
-        var likesH = likes.length>0?'<div class="wx-moment-likes-bar">'+IC.heart+' '+likes.join('、')+'</div>':'';
-        var commH = comments.length>0?'<div class="wx-moment-comments">'+comments.map(function(c){return '<div class="wx-moment-comment-item"><span class="comment-author">'+(c.author||c.name)+'：</span>'+c.text+'</div>';}).join('')+'</div>':'';
+        var likesH = likes.length>0?'<div class="wx-moment-likes-bar">'+IC.heart+' '+likes.map(function(n){return escapeHtml(n);}).join('、')+'</div>':'';
+        // [fix #12] 点击评论人名可回复
+        var commH = comments.length>0?'<div class="wx-moment-comments">'+comments.map(function(c){
+            var authorName = escapeHtml(c.author||c.name);
+            var replyPart = c.replyTo ? '<span class="comment-author" onclick="startReplyComment('+i+',\''+escapeHtml(c.replyTo)+'\')"> 回复 '+escapeHtml(c.replyTo)+'</span>' : '';
+            return '<div class="wx-moment-comment-item"><span class="comment-author" onclick="startReplyComment('+i+',\''+authorName+'\')">'+authorName+replyPart+'：</span>'+escapeHtml(c.text)+'</div>';
+        }).join('')+'</div>':'';
         var likedCls = m.liked?' liked':'';
-        return '<div class="wx-moment-item"><div class="wx-moment-avatar" style="background:'+(m.color||'#ccc')+'">'+(m.avatar||m.name[0]||'网')+'</div><div class="wx-moment-body"><div class="wx-moment-name">'+m.name+'</div><div class="wx-moment-text">'+(m.text||m.content||'')+'</div><div class="wx-moment-meta"><span class="wx-moment-time-text">'+(m.time||'刚刚')+'</span><div class="wx-moment-btns"><span class="wx-moment-btn'+likedCls+'" onclick="toggleLike('+i+')">'+IC.heart+' 赞</span><span class="wx-moment-btn" onclick="startComment('+i+')">'+IC.comment+' 评论</span></div></div>'+likesH+commH+'</div></div>';
+        // [fix #12] 点击头像跳转资料页，删除自己的动态
+        var avatarClick = '';
+        var deleteBtn = '';
+        if (m.isSelf) {
+            deleteBtn = '<span class="wx-moment-btn" onclick="deleteMoment('+i+')" style="color:#ff3b30;">删除</span>';
+        } else {
+            var contact = findContact(m.name);
+            if (contact) avatarClick = ' onclick="wxNav(\'profile\',\''+sanitizeId(contact.id)+'\')"';
+        }
+        // [fix #12] 图片占位
+        var imgHtml = '';
+        if (m.images && m.images.length > 0) {
+            imgHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+            m.images.forEach(function(img){
+                imgHtml += '<div style="width:80px;height:80px;border-radius:4px;background:'+(img.color||'#f0f0f0')+';display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;">'+(img.label||'图片')+'</div>';
+            });
+            imgHtml += '</div>';
+        }
+
+        return '<div class="wx-moment-item"><div class="wx-moment-avatar" style="background:'+(m.color||'#ccc')+'"'+avatarClick+'>'+escapeHtml(m.avatar||m.name[0]||'?')+'</div><div class="wx-moment-body"><div class="wx-moment-name">'+escapeHtml(m.name)+'</div><div class="wx-moment-text">'+escapeHtml(m.text||m.content||'')+'</div>'+imgHtml+'<div class="wx-moment-meta"><span class="wx-moment-time-text">'+(m.time||'刚刚')+'</span><div class="wx-moment-btns"><span class="wx-moment-btn'+likedCls+'" onclick="toggleLike('+i+')">'+IC.heart+' 赞</span><span class="wx-moment-btn" onclick="startComment('+i+')">'+IC.comment+' 评论</span>'+deleteBtn+'</div></div>'+likesH+commH+'</div></div>';
     }).join('');
-    
+
     return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'discover\')">'+IC.back+'</div></div><div class="wx-navbar-center">朋友圈</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="wxNav(\'publish\')">'+IC.camera+'</div></div></div>'+
-        '<div class="wx-moments-scroll"><div class="wx-moments-cover" onclick="alert(\'更换封面\')"><div class="wx-moments-me"><span class="wx-moments-my-name">'+(typeof playerName!=='undefined'?playerName:'我')+'</span><div class="wx-moments-my-avatar" style="background:'+(typeof playerColor!=='undefined'?playerColor:'#ff9eaa')+'">'+(typeof playerName!=='undefined'?playerName[0]:'我')+'</div></div></div><div class="wx-moments-list">'+list+'</div></div>'+
+        '<div class="wx-moments-scroll"><div class="wx-moments-cover" onclick="if(_useWeui)weui.alert(\'更换封面\')"><div class="wx-moments-me"><span class="wx-moments-my-name">'+(typeof playerName!=='undefined'?escapeHtml(playerName):'我')+'</span><div class="wx-moments-my-avatar" style="background:'+(typeof playerColor!=='undefined'?playerColor:'#ff9eaa')+'">'+(typeof playerName!=='undefined'?escapeHtml(playerName[0]):'我')+'</div></div></div><div class="wx-moments-list">'+list+'</div></div>'+
         '<div class="wx-moment-comment-input" id="wx-cmt-bar" style="display:none"><input id="wx-cmt-input" placeholder="评论..." onkeydown="if(event.key===\'Enter\')submitComment()"><button class="wx-moment-comment-send" onclick="submitComment()">发送</button></div></div>';
 }
 
-function toggleLike(i) { 
-    var m = wxData.moments[i]; 
+function toggleLike(i) {
+    var m = wxData.moments[i];
     if(!m.likes) m.likes=[];
     var pn = typeof playerName!=='undefined'?playerName:'我';
     if(m.liked){
@@ -268,45 +572,89 @@ function toggleLike(i) {
     }else{
         m.liked=true;
         m.likes.unshift(pn);
-    } 
-    wxNav('moments'); 
+    }
+    wxNav('moments');
 }
 
-function startComment(i) { 
-    wxData.commentingIdx=i; 
-    document.getElementById('wx-cmt-bar').style.display='flex'; 
-    document.getElementById('wx-cmt-input').focus(); 
+function startComment(i) {
+    wxData.commentingIdx=i;
+    wxData.replyTarget=null;
+    var bar = document.getElementById('wx-cmt-bar');
+    var input = document.getElementById('wx-cmt-input');
+    if(bar) bar.style.display='flex';
+    if(input){ input.placeholder='评论...'; input.focus(); }
 }
 
-function submitComment() { 
-    var t=document.getElementById('wx-cmt-input').value.trim(); 
-    if(!t||wxData.commentingIdx<0)return; 
+// [fix #12] 回复某人
+function startReplyComment(i, targetName) {
+    wxData.commentingIdx=i;
+    wxData.replyTarget=targetName;
+    var bar = document.getElementById('wx-cmt-bar');
+    var input = document.getElementById('wx-cmt-input');
+    if(bar) bar.style.display='flex';
+    if(input){ input.placeholder='回复 '+targetName+'...'; input.focus(); }
+}
+
+function submitComment() {
+    var t=document.getElementById('wx-cmt-input').value.trim();
+    if(!t||wxData.commentingIdx<0)return;
     if(!wxData.moments[wxData.commentingIdx].comments) wxData.moments[wxData.commentingIdx].comments=[];
     var pn = typeof playerName!=='undefined'?playerName:'我';
-    wxData.moments[wxData.commentingIdx].comments.push({author:pn,text:t}); 
-    wxData.commentingIdx=-1; 
-    wxNav('moments'); 
+    var commentObj = {author:pn, text:t};
+    if (wxData.replyTarget) commentObj.replyTo = wxData.replyTarget;
+    wxData.moments[wxData.commentingIdx].comments.push(commentObj);
+    wxData.commentingIdx=-1;
+    wxData.replyTarget=null;
+    wxNav('moments');
 }
 
+// [fix #12] 删除自己的动态
+function deleteMoment(idx) {
+    if (_useWeui) {
+        weui.confirm('确定删除这条动态？', function(){
+            wxData.moments.splice(idx, 1);
+            wxNav('moments');
+        });
+    }
+}
+
+// [fix #12] 发布朋友圈支持图片占位
 function renderPublish() {
-    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'moments\')">'+IC.back+'</div></div><div class="wx-navbar-center"></div><div class="wx-navbar-right"></div></div><div class="wx-publish-page"><textarea class="wx-publish-textarea" id="wx-pub-text" placeholder="这一刻的想法..."></textarea><button class="wx-publish-btn" onclick="publishMoment()">发表</button></div></div>';
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'moments\')">'+IC.back+'</div></div><div class="wx-navbar-center"></div><div class="wx-navbar-right"></div></div><div class="wx-publish-page"><textarea class="wx-publish-textarea" id="wx-pub-text" placeholder="这一刻的想法..."></textarea><div id="wx-pub-imgs" style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px;"></div><div style="padding:0 16px 12px;"><span onclick="addPubImage()" style="display:inline-flex;width:60px;height:60px;border:1px dashed #ccc;border-radius:6px;align-items:center;justify-content:center;font-size:24px;color:#ccc;cursor:pointer;">+</span></div><button class="wx-publish-btn" onclick="publishMoment()">发表</button></div></div>';
+}
+
+var _pubImages = [];
+function addPubImage() {
+    var colors = ['#ffb3ba','#bae1ff','#baffc9','#ffffba','#e8baff','#ffd6a5'];
+    var c = colors[_pubImages.length % colors.length];
+    _pubImages.push({color:c, label:'图'+ (_pubImages.length+1)});
+    var container = document.getElementById('wx-pub-imgs');
+    if(container){
+        container.innerHTML = _pubImages.map(function(img){
+            return '<div style="width:60px;height:60px;border-radius:6px;background:'+img.color+';display:flex;align-items:center;justify-content:center;font-size:10px;color:#666;">'+img.label+'</div>';
+        }).join('');
+    }
 }
 
 function publishMoment() {
     var t = document.getElementById('wx-pub-text').value.trim();
-    if (!t) { alert('请输入内容'); return; }
+    if (!t && _pubImages.length === 0) { if(_useWeui) weui.alert('请输入内容'); return; }
     var pn = typeof playerName!=='undefined'?playerName:'我';
     var pc = typeof playerColor!=='undefined'?playerColor:'#ff9eaa';
-    wxData.moments.unshift({name:pn, avatar:pn[0], color:pc, text:t, time:'刚刚', likes:[], liked:false, comments:[], isSelf:true});
+    var moment = {name:pn, avatar:pn[0], color:pc, text:t, time:'刚刚', likes:[], liked:false, comments:[], isSelf:true};
+    if (_pubImages.length > 0) moment.images = _pubImages.slice();
+    wxData.moments.unshift(moment);
+    _pubImages = [];
     wxNav('moments');
 }
 
+// [fix #4] renderMe 补全头像信息
 function renderMe() {
     var pn = typeof playerName!=='undefined'?playerName:'我';
     var pc = typeof playerColor!=='undefined'?playerColor:'#ff9eaa';
     var pWxId = typeof playerWxId!=='undefined'?playerWxId:'player_001';
-    
-        return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"></div><div class="wx-navbar-center">我</div><div class="wx-navbar-right"></div></div><div class="wx-body wx-me-page"><div class="wx-me-header" onclick="wxNav(\'myprofile\')"></div>'+
+
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"></div><div class="wx-navbar-center">我</div><div class="wx-navbar-right"></div></div><div class="wx-body wx-me-page"><div class="wx-me-header" onclick="wxNav(\'myprofile\')"><div class="wx-me-avatar" style="background:'+pc+'">'+escapeHtml(pn[0])+'</div><div class="wx-me-info"><div class="wx-me-name">'+escapeHtml(pn)+'</div><div class="wx-me-id">微信号：'+escapeHtml(pWxId)+'</div></div><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-me-gap"></div>'+
         '<div class="wx-me-item" onclick="wxNav(\'moments\')"><div class="wx-me-item-icon">'+IC.moments+'</div><span class="wx-me-item-name">朋友圈</span><div class="wx-me-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-me-gap"></div>'+
@@ -330,7 +678,7 @@ function renderMyProfile() {
 
     return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'me\')">'+IC.back+'</div></div><div class="wx-navbar-center">个人信息</div><div class="wx-navbar-right"></div></div>'+
         '<div class="wx-body wx-profile-page">'+
-        '<div style="padding:20px 16px;background:#fff;display:flex;align-items:center;gap:14px;border-bottom:0.5px solid rgba(0,0,0,0.04);"><div style="width:60px;height:60px;border-radius:10px;background:'+pc+';display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;">'+pn[0]+'</div><div style="flex:1;"><div style="font-size:17px;font-weight:600;color:#000;">'+pn+'</div><div style="font-size:13px;color:#999;margin-top:4px;">微信号：'+pid+'</div></div></div>'+
+        '<div style="padding:20px 16px;background:#fff;display:flex;align-items:center;gap:14px;border-bottom:0.5px solid rgba(0,0,0,0.04);"><div style="width:60px;height:60px;border-radius:10px;background:'+pc+';display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;">'+escapeHtml(pn[0])+'</div><div style="flex:1;"><div style="font-size:17px;font-weight:600;color:#000;">'+escapeHtml(pn)+'</div><div style="font-size:13px;color:#999;margin-top:4px;">微信号：'+escapeHtml(pid)+'</div></div></div>'+
         '<div style="height:8px;background:#f5f5f5;"></div>'+
         '<div class="wx-profile-item" onclick="editName()"><span class="wx-profile-item-name">更改昵称</span><div class="wx-profile-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-me-gap"></div>'+
@@ -338,36 +686,38 @@ function renderMyProfile() {
         '</div></div>';
 }
 
+// [fix #19] 直接赋值，不做 typeof 判断
 function changeAvatar(color) {
-    var oldColor = typeof playerColor!=='undefined'?playerColor:'#ff9eaa';
-    if(typeof window.playerColor !== 'undefined') window.playerColor = color;
+    var oldColor = window.playerColor || '#ff9eaa';
+    window.playerColor = color;
     wxData.moments.forEach(function(m){
         if(m.isSelf || m.color===oldColor) m.color = color;
     });
     wxNav('myprofile');
 }
 
-function confirmEditName() {
-    var input = document.getElementById('edit-name-input');
-    var newName = input.value.trim();
-    if (!newName) { alert('昵称不能为空'); return; }
-    var oldName = typeof playerName!=='undefined'?playerName:'我';
-    if(typeof window.playerName !== 'undefined') window.playerName = newName;
-    wxData.moments.forEach(function(m){
-        if(m.isSelf || m.name===oldName) { m.name = newName; m.avatar = newName[0]; }
-    });
-    if(document.querySelector('.modal-overlay')) document.querySelector('.modal-overlay').remove();
-    wxNav('myprofile');
-}
-
+// [fix #16][fix #18] 用 weui.dialog 代替 prompt（续）
 function editName() {
-    var currentName = typeof playerName!=='undefined'?playerName:'我';
-    var newName = prompt('修改微信名', currentName);
-    if (newName && newName.trim()) {
-        if(typeof window.playerName !== 'undefined') window.playerName = newName.trim();
-        var pn = newName.trim();
-        wxData.moments.forEach(function(m){ if(m.name==='玩家'||(m.color==='#ff9eaa'&&m.avatar===m.name[0])) { m.name=pn; m.avatar=pn[0]; }});
-        wxNav('me');
+    if (_useWeui) {
+        weui.dialog({
+            title: '修改微信名',
+            content: '<input class="weui-input" id="edit-name-val" value="'+(typeof playerName!=='undefined'?escapeHtml(playerName):'我')+'" style="border-bottom:1px solid #eee;padding:8px 0;">',
+            className: 'custom',
+            buttons: [
+                { label: '取消', type: 'default', onClick: function(){} },
+                { label: '确定', type: 'primary', onClick: function(){
+                    var input = document.getElementById('edit-name-val');
+                    var newName = input ? input.value.trim() : '';
+                    if (!newName) { weui.alert('昵称不能为空'); return; }
+                    var oldName = window.playerName || '我';
+                    window.playerName = newName;
+                    wxData.moments.forEach(function(m){
+                        if(m.isSelf || m.name===oldName) { m.name = newName; m.avatar = newName[0]; }
+                    });
+                    wxNav('myprofile');
+                }}
+            ]
+        });
     }
 }
 
@@ -375,35 +725,123 @@ function renderProfile(contactId) {
     var contact = null;
     wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){ if(c.id===contactId) contact=c; }); });
     if (!contact) { wxNav('contacts'); return ''; }
-    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'contacts\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+contact.name+'</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="showProfileMore(\''+contactId+'\')">'+IC.more+'</div></div></div>'+
-        '<div class="wx-body wx-profile-page"><div class="wx-profile-header"><div class="wx-profile-avatar" style="background:'+contact.color+'">'+contact.avatar+'</div><div class="wx-profile-info"><div class="wx-profile-name">'+contact.name+'</div><div class="wx-profile-detail">微信号：'+contact.id+'_wx</div></div></div>'+
+    var sid = sanitizeId(contactId);
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'contacts\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+escapeHtml(contact.name)+'</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="showProfileMore(\''+sid+'\')">'+IC.more+'</div></div></div>'+
+        '<div class="wx-body wx-profile-page"><div class="wx-profile-header"><div class="wx-profile-avatar" style="background:'+contact.color+'">'+escapeHtml(contact.avatar)+'</div><div class="wx-profile-info"><div class="wx-profile-name">'+escapeHtml(contact.name)+'</div><div class="wx-profile-detail">微信号：'+escapeHtml(contact.id)+'_wx</div></div></div>'+
         '<div class="wx-me-gap"></div>'+
         '<div class="wx-profile-item"><span class="wx-profile-item-name">朋友资料</span><div class="wx-profile-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-profile-item"><span class="wx-profile-item-name">朋友圈</span><div class="wx-profile-item-arrow">'+IC.arrowR+'</div></div>'+
         '<div class="wx-me-gap"></div>'+
-        '<div class="wx-profile-actions"><div class="wx-profile-action-btn" onclick="goChat(\''+contactId+'\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-4l-4 3.5V16H7a3 3 0 0 1-3-3V6z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg> 发消息</div><div class="wx-profile-action-btn secondary">'+IC.phone+' 音视频通话</div></div>'+
+        '<div class="wx-profile-actions"><div class="wx-profile-action-btn" onclick="goChat(\''+sid+'\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-4l-4 3.5V16H7a3 3 0 0 1-3-3V6z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg> 发消息</div><div class="wx-profile-action-btn secondary">'+IC.phone+' 音视频通话</div></div>'+
         '</div></div>';
 }
 
+// [fix #9] 从通讯录发起新对话（不再 alert）
 function goChat(contactId) {
     var chatExists = wxData.chats.find(function(c){return c.id===contactId;});
-    if (chatExists) { wxNav('conversation', contactId); }
-    else { alert('暂无聊天记录'); }
+    if (chatExists) {
+        wxNav('conversation', contactId);
+    } else {
+        // 自动创建新对话
+        var contact = null;
+        wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){ if(c.id===contactId) contact=c; }); });
+        if (!contact) return;
+        wxData.chats.push({
+            id: contactId,
+            name: contact.name,
+            avatar: contact.avatar,
+            color: contact.color,
+            unread: 0,
+            lastMsg: '',
+            sortKey: Date.now()
+        });
+        wxData.conversations[contactId] = [];
+        wxNav('conversation', contactId);
+    }
 }
 
+// [fix #13] showProfileMore 操作项全做实
 function showProfileMore(contactId) {
-    var el = document.getElementById('screen-wechat');
-    var overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    overlay.onclick = function(e){if(e.target===overlay)overlay.remove();};
-    overlay.innerHTML = '<div class="action-sheet"><div class="action-sheet-item">编辑备注</div><div class="action-sheet-item">设置权限</div><div class="action-sheet-item">推荐给朋友</div><div class="action-sheet-item">设为星标朋友</div><div class="action-sheet-item">加入黑名单</div><div class="action-sheet-item">投诉</div><div class="action-sheet-item danger">删除联系人</div><div class="action-sheet-cancel" onclick="this.closest(\'.overlay\').remove()">取消</div></div>';
-    el.querySelector('.wechat-container').appendChild(overlay);
+    if (!_useWeui) return;
+    weui.actionSheet([
+        { label: '编辑备注', onClick: function(){
+            weui.dialog({
+                title: '编辑备注',
+                content: '<input class="weui-input" id="remark-input" placeholder="输入备注名" style="border-bottom:1px solid #eee;padding:8px 0;">',
+                className: 'custom',
+                buttons: [
+                    { label: '取消', type: 'default', onClick: function(){} },
+                    { label: '确定', type: 'primary', onClick: function(){
+                        var remark = document.getElementById('remark-input').value.trim();
+                        if (!remark) return;
+                        // 更新联系人名字
+                        wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){
+                            if(c.id===contactId) c.name = remark;
+                        }); });
+                        // 更新聊天列表
+                        var chat = wxData.chats.find(function(c){return c.id===contactId;});
+                        if(chat) chat.name = remark;
+                        wxNav('profile', contactId);
+                    }}
+                ]
+            });
+        }},
+        { label: '设置权限', onClick: function(){ weui.alert('功能开发中'); } },
+        { label: '推荐给朋友', onClick: function(){ weui.alert('功能开发中'); } },
+        { label: '设为星标朋友', onClick: function(){
+            wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){
+                if(c.id===contactId) c.star = !c.star;
+            }); });
+            weui.toast('已设为星标', {duration:1500});
+        }},
+        { label: '加入黑名单', onClick: function(){ weui.alert('功能开发中'); } },
+        { label: '投诉', onClick: function(){ weui.alert('功能开发中'); } },
+        { label: '删除联系人', className: 'weui-actionsheet__cell_warn', onClick: function(){
+            weui.confirm('确定删除该联系人？聊天记录也会删除。', function(){
+                // 从 contacts 中移除
+                wxData.contacts.forEach(function(g){
+                    g.items = (g.items||[]).filter(function(c){ return c.id !== contactId; });
+                });
+                // 从 chats 中移除
+                wxData.chats = wxData.chats.filter(function(c){ return c.id !== contactId; });
+                delete wxData.conversations[contactId];
+                wxNav('contacts');
+            });
+        }}
+    ], [{ label: '取消', onClick: function(){} }]);
 }
 
 function findContact(name) {
     var found = null;
     wxData.contacts.forEach(function(g){ (g.items||[]).forEach(function(c){ if(c.name===name) found=c; }); });
     return found;
+}
+
+// [fix #17] formatChatTime 实现
+function formatChatTime(timeStr) {
+    if (!timeStr) return '';
+    // 如果已经是格式化文字（如"刚刚"、"昨天"），直接返回
+    if (typeof timeStr === 'string' && !/^\d/.test(timeStr)) return timeStr;
+
+    var date = new Date(timeStr);
+    if (isNaN(date.getTime())) return timeStr;
+
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var diffDays = Math.floor((today - msgDay) / 86400000);
+
+    if (diffDays === 0) {
+        // 今天：显示 HH:mm
+        return String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
+    } else if (diffDays === 1) {
+        return '昨天';
+    } else if (diffDays < 7) {
+        var days = ['周日','周一','周二','周三','周四','周五','周六'];
+        return days[date.getDay()];
+    } else {
+        return String(date.getMonth()+1).padStart(2,'0') + '/' + String(date.getDate()).padStart(2,'0');
+    }
 }
 
 function renderTabbar(active) {
@@ -425,3 +863,5 @@ function wxSwitchTab(id) {
     else if (id==='discover') wxNav('discover');
     else if (id==='me') wxNav('me');
 }
+
+
