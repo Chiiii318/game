@@ -125,8 +125,8 @@ function addTargetCard() {
     div.dataset.index = count;
     div.innerHTML = `
   <div class="target-card-header">
-    <span class="target-card-label">♥ 攻略对象 ${count + 1}</span>
-    <span class="delete-target" onclick="this.closest('.target-card').remove()">✕ 删除</span>
+    <span class="target-card-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>攻略对象 ${count + 1}</span>
+    <span class="delete-target" onclick="this.closest('.target-card').remove()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="vertical-align:-1px;margin-right:2px;"><line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="19" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>删除</span>
   </div>
   <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
   <div class="form-group" style="margin-top:10px;">
@@ -677,7 +677,7 @@ function renderGameUI(narrative, choices) {
         affEl.innerHTML = '';
         Object.keys(gameState.targets).forEach(name => {
             const t = gameState.targets[name];
-            affEl.innerHTML += `<div class="status-row"><span class="status-label">💗 ${name}</span><div class="affection-wrap"><div class="affection-bar"><div class="affection-fill" style="width:${t.affection}%"></div></div><span class="status-value" style="font-size:12px">${t.affection}</span></div></div>`;
+            affEl.innerHTML += `<div class="status-row"><span class="status-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z" fill="#ff6b81" stroke="#ff6b81" stroke-width="1.6" stroke-linejoin="round"/></svg>${name}</span><div class="affection-wrap"><div class="affection-bar"><div class="affection-fill" style="width:${t.affection}%"></div></div><span class="status-value" style="font-size:12px">${t.affection}</span></div></div>`;
         });
     }
 
@@ -700,7 +700,7 @@ function renderGameUI(narrative, choices) {
         // 🌟 第4个固定按钮：自由行动
         const freeBtn = document.createElement('button'); 
         freeBtn.className = 'choice-btn';
-        freeBtn.innerHTML = `<span class="choice-label">✏️</span> 以上都不选，我要自己来`;
+        freeBtn.innerHTML = `<span class="choice-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;"><path d="M4 20l4-1 11-11a2 2 0 0 0-3-3L5 16l-1 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span> 以上都不选，我要自己来`;
         freeBtn.onclick = () => { 
             document.getElementById('game-input').focus(); 
             document.getElementById('game-input').placeholder = '输入你想做的事...';
@@ -708,7 +708,7 @@ function renderGameUI(narrative, choices) {
         choicesEl.appendChild(freeBtn);
     } else if (narrative !== '') {
         const btn = document.createElement('button'); btn.className = 'choice-btn';
-        btn.textContent = '▶ 继续';
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M7 4l13 8-13 8V4z" fill="currentColor"/></svg>继续';
         btn.onclick = () => sendContinue();
         choicesEl.appendChild(btn);
     }

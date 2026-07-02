@@ -198,7 +198,7 @@ function openApp(id) {
 function showPlaceholder(screenId, appName) {
     var el = document.getElementById(screenId);
     if (el && !el.innerHTML.trim()) {
-        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;font-size:14px;gap:12px;"><div style="font-size:40px;">🚧</div><div>' + appName + ' 功能开发中</div><div style="font-size:12px;color:#ccc;">后续版本更新</div><div style="margin-top:20px;padding:8px 20px;background:#f0f0f0;border-radius:18px;font-size:13px;color:#666;cursor:pointer;" onclick="goDesktop()">返回桌面</div></div>';
+        el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;font-size:14px;gap:12px;"><div style="color:#ccc;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>' + appName + ' 功能开发中</div><div style="font-size:12px;color:#ccc;">后续版本更新</div><div style="margin-top:20px;padding:8px 20px;background:#f0f0f0;border-radius:18px;font-size:13px;color:#666;cursor:pointer;" onclick="goDesktop()">返回桌面</div></div>';
     }
 }
 
@@ -379,7 +379,7 @@ if (e.data.type === 'PHONE_RESTORE') {
                 else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { var isDup = xhsData.notes.some(function(existing) { return (existing.title || existing.content) === (n.title || n.content) && (existing.author || existing.name) === (n.author || n.name); }); if (!isDup) xhsData.notes.unshift(n); }); }
                 else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { var isDup = biliData.videos.some(function(existing) { return existing.title === v.title && (existing.up || existing.author) === (v.up || v.author); }); if (!isDup) biliData.videos.unshift(v); }); }
                 else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; var isDup = dbData.posts[g].some(function(existing) { return existing.title === p.title && (existing.author || existing.name) === (p.author || p.name); }); if (!isDup) dbData.posts[g].unshift(p); }); }
-                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
+                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { var isDup = tfData.feed.some(function(existing) { return (existing.text || existing.content) === (p.text || p.content) && (existing.name || existing.author) === (p.name || p.author); }); if (!isDup) tfData.feed.unshift(p); }); }
                 else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
             });
 
@@ -507,10 +507,11 @@ if (e.data.type === 'PHONE_RESTORE') {
         // ★ TFamily
         else if (app === 'tfamily' && typeof tfData !== 'undefined') {
             if (!tfData.feed) tfData.feed = [];
-            items.forEach(function(p) { tfData.feed.unshift(p); });
+            items.forEach(function(p) { var isDup = tfData.feed.some(function(existing) { return (existing.text || existing.content) === (p.text || p.content) && (existing.name || existing.author) === (p.name || p.author); }); if (!isDup) tfData.feed.unshift(p); });
             var activeTf = document.querySelector('.screen.active');
             if (activeTf && activeTf.id === 'screen-tfamily' && typeof tfNav === 'function') tfNav('home');
         }
+
 // ★ iMessage
 else if (app === 'imessage' && typeof imData !== 'undefined') {
     mergeImChats(items);
@@ -569,22 +570,6 @@ function goBack() {
 
     // 默认：已在 App 首页，退回桌面
     goDesktop();
-}
-
-// iMessage 数据规范化：补齐列表页和聊天页都需要的字段
-function normalizeImChat(m) {
-    m = m || {};
-    return {
-        id:      m.id || ('im_' + Date.now() + '_' + Math.random().toString(36).slice(2,6)),
-        name:    m.name || '未知号码',
-        avatar:  m.avatar || '',
-        color:   m.color || '#8e8e93',
-        lastMsg: m.lastMsg || (m.msgs && m.msgs.length ? (m.msgs[m.msgs.length-1].text || '') : ''),
-        time:    m.time || '刚刚',
-        unread:  m.unread || 0,
-        sortKey: m.sortKey || Date.now(),
-        msgs:    Array.isArray(m.msgs) ? m.msgs : []
-    };
 }
 
 // ═══ 通知主页面：手机 iframe 已加载完毕，可以接收消息了 ═══
