@@ -585,10 +585,6 @@ function pushStoreToPhone() {
     }
 }
 
-    renderGameUI(narrative, choices);
-    updatePhoneBadge();
-}
-
 function renderGameUI(narrative, choices) {
     document.getElementById('game-round').textContent = '第' + gameState.round + '回合';
     document.getElementById('game-time').textContent = 'Day' + gameState.day + ' · ' + gameState.timeOfDay;

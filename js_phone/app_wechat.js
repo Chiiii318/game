@@ -157,8 +157,8 @@ function renderConversation() {
             var click = st==='pending'?' onclick="showTransferAction('+idx+')"':'';
             content = '<div class="wx-transfer '+topCls+'"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+escapeHtml(msg.amount)+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+escapeHtml(msg.note||'转账')+'</div></div>';
         } else if (msg.type === 'typing') {
-            content = '<div class="wx-bubble typing-dots"><span>·</span><span>·</span><span>·</span></div>';
-        } else {
+    return ''; // typing 不作为气泡渲染，改在导航栏标题下方提示
+}
             // [fix #8] 长按消息弹出菜单
             var longpress = self ? ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',true)"' : ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',false)"';
             content = '<div class="wx-bubble"'+longpress+'>'+escapeHtml(msg.message||msg.text||'')+'</div>';
@@ -289,18 +289,45 @@ function showPlusMenu() {
     }
 }
 
-// [fix #18] 用 weui 替换加号面板
+// 微信 + 号功能面板：底部横向宫格（原生微信样式），支持左右翻页
 function showPlusPanel() {
-    if (_useWeui) {
-        weui.actionSheet([
-            { label: '📷 相册', onClick: function(){ weui.alert('功能开发中'); } },
-            { label: '📸 拍摄', onClick: function(){ weui.alert('功能开发中'); } },
-            { label: '🧧 红包', onClick: function(){ showRedpacketModal(); } },
-            { label: '💰 转账', onClick: function(){ showTransferModal(); } },
-            { label: '📍 位置', onClick: function(){ weui.alert('功能开发中'); } },
-            { label: '👤 名片', onClick: function(){ weui.alert('功能开发中'); } }
-        ], [{ label: '取消', onClick: function(){} }]);
-    }
+    closePlusPanel(); // 防止重复叠加
+    var grid = [
+        { key:'album',    label:'相册',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#555" stroke-width="1.4"/><circle cx="8.5" cy="10" r="1.8" stroke="#555" stroke-width="1.2"/><path d="M4 17l5-4 3 2 4-3 4 3" stroke="#555" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'shoot',    label:'拍摄',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="2.5" stroke="#555" stroke-width="1.4"/><path d="M8 7l1.5-2h5L16 7" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="13" r="3" stroke="#555" stroke-width="1.4"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'redpacket',label:'红包',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="#e4574c" stroke-width="1.4"/><path d="M5 9h14" stroke="#e4574c" stroke-width="1.4"/><circle cx="12" cy="11" r="2" stroke="#e4574c" stroke-width="1.3"/></svg>', act:function(){ closePlusPanel(); showRedpacketModal(); } },
+        { key:'transfer', label:'转账',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#555" stroke-width="1.4"/><path d="M12 7v10M9 10h4.5a1.8 1.8 0 0 1 0 3.6H9" stroke="#555" stroke-width="1.4" stroke-linecap="round"/></svg>', act:function(){ closePlusPanel(); showTransferModal(); } },
+        { key:'voicechat',label:'语音通话',icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'location', label:'位置',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21c4-4.5 7-8 7-11a7 7 0 1 0-14 0c0 3 3 6.5 7 11z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" stroke="#555" stroke-width="1.3"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'card',     label:'名片',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#555" stroke-width="1.4"/><circle cx="8.5" cy="11" r="2" stroke="#555" stroke-width="1.2"/><path d="M13 10h5M13 13h5M6 16h6" stroke="#555" stroke-width="1.2" stroke-linecap="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'file',     label:'文件',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 3h8l4 4v14H6z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } }
+    ];
+
+    var cells = grid.map(function(g, i){
+        return '<div class="wx-plus-cell" data-idx="'+i+'"><div class="wx-plus-icon">'+g.icon+'</div><span class="wx-plus-label">'+g.label+'</span></div>';
+    }).join('');
+
+    var panel = document.createElement('div');
+    panel.id = 'wx-plus-panel';
+    panel.className = 'wx-plus-mask';
+    // 横向可左右滑动的宫格容器
+    panel.innerHTML = '<div class="wx-plus-sheet"><div class="wx-plus-grid">'+cells+'</div></div>';
+    panel.addEventListener('click', function(e){ if(e.target === panel) closePlusPanel(); });
+    document.getElementById('screen-wechat').appendChild(panel);
+
+    // 绑定每个格子的点击（用索引，避免闭包引用问题）
+    panel.querySelectorAll('.wx-plus-cell').forEach(function(cell){
+        cell.addEventListener('click', function(){
+            var idx = parseInt(cell.getAttribute('data-idx'), 10);
+            if (grid[idx] && grid[idx].act) grid[idx].act();
+        });
+    });
+    requestAnimationFrame(function(){ panel.classList.add('show'); });
+}
+
+function closePlusPanel() {
+    var p = document.getElementById('wx-plus-panel');
+    if (p) p.parentNode.removeChild(p);
 }
 
 // [fix #10] 红包弹窗
