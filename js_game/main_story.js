@@ -359,18 +359,18 @@ async function sendFirstRound() {
 
 
 async function sendPlayerInput() {
-    if (isRequesting) return;
+    if (window.isRequesting) return;
     const input = document.getElementById('game-input');
     const text = input.value.trim();
     if (!text) return; input.value = ''; await sendToAI(text);
 }
-function sendChoice(choiceText) { if(!isRequesting) sendToAI('我选择：' + choiceText); }
-function sendContinue() { if(!isRequesting) sendToAI('[继续]'); }
+function sendChoice(choiceText) { if(!window.isRequesting) sendToAI('我选择：' + choiceText); }
+function sendContinue() { if(!window.isRequesting) sendToAI('[继续]'); }
 
 async function sendToAI(userText) {
-    if (isRequesting) return;
+    if (window.isRequesting) return;
     
-    isRequesting = true; 
+    window.isRequesting = true; 
     setLoading(true); 
     document.getElementById('game-send-btn').disabled = true;
     
@@ -410,7 +410,7 @@ async function sendToAI(userText) {
                 parseAndRender(fullText);
                 autoSave();
                 
-                isRequesting = false; 
+                                window.isRequesting = false; 
                 setLoading(false); 
                 document.getElementById('game-send-btn').disabled = false;
             },
@@ -504,11 +504,17 @@ if (pMatch) {
             const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
             if (!m) return;
             const key = m[1].trim(), val = m[2].trim();
-            if (key === 'reputation') {
-                gameState.reputation = val.startsWith('+')||val.startsWith('-') ? Math.max(0, Math.min(100, gameState.reputation + parseInt(val))) : parseInt(val);
+                        if (key === 'reputation') {
+                const n = parseInt(val);
+                if (!isNaN(n)) {
+                    gameState.reputation = (val.startsWith('+')||val.startsWith('-')) ? Math.max(0, Math.min(100, gameState.reputation + n)) : Math.max(0, Math.min(100, n));
+                }
             } else if (key.startsWith('affection_') && gameState.targets[key.replace('affection_', '')]) {
                 const t = gameState.targets[key.replace('affection_', '')];
-                t.affection = val.startsWith('+')||val.startsWith('-') ? Math.max(0, Math.min(100, t.affection + parseInt(val))) : parseInt(val);
+                const n = parseInt(val);
+                if (!isNaN(n)) {
+                    t.affection = (val.startsWith('+')||val.startsWith('-')) ? Math.max(0, Math.min(100, t.affection + n)) : Math.max(0, Math.min(100, n));
+                }
             } else if (key.startsWith('possessiveness_') && gameState.targets[key.replace('possessiveness_', '')]) {
                 gameState.targets[key.replace('possessiveness_', '')].possessiveness = val;
             }
@@ -676,7 +682,7 @@ async function handlePhoneInteract(data) {
         const appFormatRequirements = {
             weibo: `生成 5-8 条微博帖子。必须输出严格的 JSON 数组：[{"author":"博主名(用饭圈自然ID)","time":"刚刚","device":"iPhone 15 Pro","content":"正文，带有#话题#","likes":2341,"comments":432,"shares":120}]`,
             douyin: `生成 3 个抖音视频数据。必须输出严格的 JSON 数组：[{"author":"账号名","desc":"视频文案带#话题#","likes":"52.3w","comments":"8.4w","shares":"2.1w","stars":"1.2w","danmaku":["弹幕1","弹幕2","弹幕3"]}]`,
-            xhs: `生成 6 条小红书笔记。必须输出严格的 JSON 数组：[{"author":"用户名","title":"标题(多加Emoji)","likes":3421}]`,
+            redbook: `生成 6 条小红书笔记。必须输出严格的 JSON 数组：[{"author":"用户名","title":"标题(多加Emoji)","likes":3421}]`,
             bilibili: `生成 4 个B站视频卡片。必须输出严格的 JSON 数组：[{"title":"二创标题","author":"UP主名","views":"24.3万","danmaku":"4721","duration":"03:45"}]`,
             douban: `生成 4 个豆瓣吃瓜帖。必须输出严格的 JSON 数组：[{"group":"时代峰峻家属区","title":"帖子标题","author":"发帖人ID(也可叫已注销)","content":"帖子正文详情","likes":123,"comments":456}]`,
             tfamily: `生成 3 条 T-Family 高级会员专属动态。此为公司官方App，请用官方或站姐的口吻发布高清物料和内部花絮。必须输出严格的 JSON 数组：[{"name":"时代峰峻官方","verified":true,"time":"刚刚","text":"文字内容","likes":8848,"reposts":230}]`
