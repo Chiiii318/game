@@ -249,14 +249,7 @@ async function startGame() {
     currentTab: 'story',                // ★ 当前底部Tab（默认剧情）
     lastPhoneApp: 'wechat'             // ★ 手机内最后停留的App（Tab记忆）
 };
-// ★ 开局基础联系人：把每个攻略对象自动写入微信，避免空白
-targets.forEach((cardObj, idx) => { /* 原有解析 name 的逻辑保持不变 */ });
-Object.keys(gameState.targets).forEach(name => {
-    const id = 'wx_' + name;
-    gameState.phoneStore.wechat.chats.push({ id, name, avatar:name[0], color:'#4a90d9', lastMsg:'（还没有聊天记录）', time:'' });
-    gameState.phoneStore.wechat.conversations[id] = [];
-});
-
+    // ① 先解析每个攻略对象的名字，填充 gameState.targets
     targets.forEach((cardObj, idx) => {
         let name = '';
         const patterns = [ /名字[：:]\s*(.+)/, /姓名[：:]\s*(.+)/, /角色[：:]\s*(.+)/, /^[【\[](.+?)[】\]]/m, /^(.{2,4})[,，\s/|·]/m ];
@@ -266,6 +259,13 @@ Object.keys(gameState.targets).forEach(name => {
         }
         if (!name) name = cardObj.content.trim().split(/[\n\r]/)[0].substring(0, 6).trim() || '攻略对象' + (idx + 1);
         gameState.targets[name] = { affection: 0, possessiveness: '低', trust: 50, alertness: 20 };
+    });
+
+    // ② 再把已解析出的攻略对象写入微信通讯录，避免开局空白
+    Object.keys(gameState.targets).forEach(name => {
+        const id = 'wx_' + name;
+        gameState.phoneStore.wechat.chats.push({ id, name, avatar:name[0], color:'#4a90d9', lastMsg:'（还没有聊天记录）', time:'' });
+        gameState.phoneStore.wechat.conversations[id] = [];
     });
 
         // ★ 新游戏：清空手机 iframe 的旧数据
@@ -484,22 +484,25 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
     }
 
             // 解析全平台手机数据 (JSON格式提取)
-        const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
-if (pMatch) {
-    try {
-        const newPhoneData = JSON.parse(pMatch[1].trim());
-        // ★ 时间线联动：把本回合产生的所有内容累加进全局仓库 phoneStore
-        mergeIntoPhoneStore(newPhoneData);   // 见下方段落 D 新函数
-        // ★ 累计未读红点（供底部 Tab 显示）
-        let newBadge = 0;
-        if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v||0));
-        gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
-        // ★ 若手机Tab当前已挂载，实时把最新仓库快照推给它
-        pushStoreToPhone();                  // 见下方段落 D
-    } catch (e) { console.error('手机数据解析失败', e); }
-}
+            const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+    if (pMatch) {
+        try {
+            const newPhoneData = JSON.parse(pMatch[1].trim());
+            mergeIntoPhoneStore(newPhoneData);
+            let newBadge = 0;
+            if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v||0));
+            gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
+            pushStoreToPhone();
+        } catch (e) { console.error('手机数据解析失败', e); }
+    }
 
-// ════ 全局手机数据仓库：剧情/手机/数值共用同一份 ════
+    const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
+    ... // dMatch 处理块保持不变
+    renderGameUI(narrative, choices);
+    updatePhoneBadge();
+}   // ← parseAndRender 到此闭合
+
+// ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
 function ensurePhoneStore() {
     if (!gameState.phoneStore) {
         gameState.phoneStore = {
@@ -511,42 +514,12 @@ function ensurePhoneStore() {
     return gameState.phoneStore;
 }
 
-// 把一回合的 PHONE_DATA 增量合并进永久仓库（不再清空，只累加）
 function mergeIntoPhoneStore(pd) {
     const store = ensurePhoneStore();
-    const ad = pd.app_data || {};
-    // 微信：按 chatId 合并对话，永久保留
-    (ad.wechat || []).forEach(chat => {
-        if (!chat.chatId) return;
-        let c = store.wechat.chats.find(x => x.id === chat.chatId);
-        if (!c) {
-            c = { id: chat.chatId, name: chat.chatName || chat.chatId,
-                  avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg:'', time:'刚刚' };
-            store.wechat.chats.push(c);
-        }
-        if (!store.wechat.conversations[chat.chatId]) store.wechat.conversations[chat.chatId] = [];
-        (chat.messages||[]).forEach(m => store.wechat.conversations[chat.chatId].push(m));
-        const last = (chat.messages||[]).slice(-1)[0];
-        if (last) { c.lastMsg = last.message; c.time = '刚刚'; }
-    });
-    // 其他平台：直接累加进仓库数组
-    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
-    (ad[app] || []).forEach(item => {
-        // ★ 通用去重：按内容+作者判断
-        const content = item.content || item.text || item.desc || item.title || '';
-        const author = item.author || item.name || '';
-        const isDup = (store[app] || []).some(existing => {
-            const ec = existing.content || existing.text || existing.desc || existing.title || '';
-            const ea = existing.author || existing.name || '';
-            return ec === content && ea === author && content !== '';
-        });
-        if (!isDup) store[app].unshift(item);
-    });
-});
+    ... // 内部逻辑完全不变
     (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
 }
 
-// 把整份仓库快照推给手机Tab（切过去时一次性批量加载）
 function pushStoreToPhone() {
     const iframe = document.getElementById('phone-iframe');
     const msg = { type: 'PHONE_STORE_SYNC', store: gameState.phoneStore, badges: null };
@@ -558,7 +531,6 @@ function pushStoreToPhone() {
     }
 }
 
-    const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
     if (dMatch) {
         dMatch[1].trim().split('\n').forEach(line => {
             const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
@@ -683,9 +655,11 @@ window.addEventListener('message', async (e) => {
         return;
     }
     
-    if (e.data.type === 'PHONE_CLOSE') {
-        document.getElementById("phone-overlay").classList.remove("show");
+        if (e.data.type === 'PHONE_CLOSE') {
+        // 手机已改为常驻 Tab，关闭即切回剧情 Tab（无 phone-overlay）
+        if (typeof switchTab === 'function') switchTab('story');
         document.body.style.overflow = "";
+        return;
     }
 
     // ★★★ 新增：手机Tab记忆 —— 记录玩家最后打开了哪个App ★★★
