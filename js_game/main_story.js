@@ -531,8 +531,18 @@ function mergeIntoPhoneStore(pd) {
     });
     // 其他平台：直接累加进仓库数组
     ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
-        (ad[app] || []).forEach(item => store[app].unshift(item));
+    (ad[app] || []).forEach(item => {
+        // ★ 通用去重：按内容+作者判断
+        const content = item.content || item.text || item.desc || item.title || '';
+        const author = item.author || item.name || '';
+        const isDup = (store[app] || []).some(existing => {
+            const ec = existing.content || existing.text || existing.desc || existing.title || '';
+            const ea = existing.author || existing.name || '';
+            return ec === content && ea === author && content !== '';
+        });
+        if (!isDup) store[app].unshift(item);
     });
+});
     (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
 }
 

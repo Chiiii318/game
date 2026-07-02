@@ -4,8 +4,49 @@
 
 var wbData = {
     currentView:'home', currentPostIdx:-1, currentDmId:null,
-    hotSearch: [], feed: [], messages: [], dms: [], visitors: [], accounts: []
+    hotSearch: [], feed: [], messages: [], dms: [], visitors: [], accounts: [],
+    playerProfile: null,          // ★ 玩家微博主页信息（从角色卡推断）
+    playerAccounts: []            // ★ 玩家拥有的多个微博账号（从角色卡/剧情动态生成）
 };
+
+// ★ 手机启动时，从父页面 gameState 提取玩家资料填充微博主页
+function wbInitPlayerProfile() {
+    // 尝试从父页面拿玩家信息
+    try {
+        var gs = window.parent.gameState;
+        if (!gs) return;
+        var name = typeof playerName !== 'undefined' ? playerName : '玩家';
+        var color = typeof playerColor !== 'undefined' ? playerColor : '#ff9eaa';
+        
+        // ★ 主号
+        wbData.playerProfile = {
+            name: name,
+            avatar: name[0],
+            color: color,
+            desc: '（主页简介会根据你的角色设定自动生成）',
+            following: 0,
+            followers: 0,
+            postCount: 0
+        };
+        
+        // ★ 从角色卡里提取"多账号"信息（通用：如果剧情/角色卡提到有小号、皮下号，就动态创建）
+        // 先放一个主号进 accounts
+        wbData.accounts = [{
+            id: 'player_main',
+            name: name,
+            avatar: name[0],
+            color: color,
+            desc: '主账号',
+            verified: false,
+            following: 128,
+            followers: 0,
+            isPlayer: true
+        }];
+        // playerAccounts 也同步（用于切换逻辑）
+        wbData.playerAccounts = wbData.accounts.filter(function(a){ return a.isPlayer; });
+        
+    } catch(e) { /* iframe 跨域可能失败，不阻塞 */ }
+}
 
 var WB_IC = {
     repost:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 14l3-3 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11v5a3 3 0 0 0 3 3h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M21 10l-3 3-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 13V8a3 3 0 0 0-3-3H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -46,6 +87,7 @@ function wbNav(view,data){
     else if(view==='publish')el.innerHTML=renderWbPublish();
     else if(view==='searchresult')el.innerHTML=renderWbSearchResult();
     else if(view==='account'){wbData._currentAccountId=data;el.innerHTML=renderWbAccount(data);}
+else if(view==='accountSwitch'){el.innerHTML=renderWbAccountSwitch();}
     wbData._prevView=view;
 }
 
@@ -169,10 +211,48 @@ function renderWbDm(){
 }
 
 function renderWbProfile(idx){
-    var p=idx!==undefined?wbData.feed[idx]:{name:(typeof playerName!=='undefined'?playerName:'玩家'),avatar:(typeof playerName!=='undefined'?playerName[0]:'玩'),color:(typeof playerColor!=='undefined'?playerColor:'#ff9eaa'),likes:0,reposts:0};
-    var isSelf=(p.name===(typeof playerName!=='undefined'?playerName:'玩家'));
-    var extra=isSelf?'<div style="padding:12px 16px;"><div style="padding:10px;text-align:center;background:#fff3ef;border-radius:8px;color:#ff6b2b;font-size:13px;cursor:pointer;" onclick="wbNav(\'visitors\')">查看访客记录 →</div></div>':'';
-    return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'home\')">'+IC.back+'</div><div class="wb-detail-title">个人主页</div></div><div class="wb-body"><div class="wb-profile-header"><div class="wb-profile-top"><div class="wb-profile-avatar" style="background:'+(p.color||'#ccc')+'">'+(p.avatar||p.name[0])+'</div><div class="wb-profile-info"><div class="wb-profile-name">'+(p.name||p.author)+'</div><div class="wb-profile-desc">这个人很懒 什么都没写</div></div></div><div class="wb-profile-stats"><div class="wb-profile-stat"><div class="wb-profile-stat-num">128</div><div class="wb-profile-stat-label">关注</div></div><div class="wb-profile-stat"><div class="wb-profile-stat-num">'+wbFmtNum(p.likes||0)+'</div><div class="wb-profile-stat-label">粉丝</div></div><div class="wb-profile-stat"><div class="wb-profile-stat-num">32</div><div class="wb-profile-stat-label">微博</div></div></div></div>'+extra+'</div></div>';
+    var pName = typeof playerName!=='undefined' ? playerName : '玩家';
+    var pColor = typeof playerColor!=='undefined' ? playerColor : '#ff9eaa';
+    var p, isSelf;
+
+    if (idx !== undefined) {
+        // 看别人的主页
+        p = wbData.feed[idx] || {};
+        isSelf = ((p.name||p.author) === pName);
+    } else {
+        // 看自己的主页
+        isSelf = true;
+        p = { name: pName, avatar: pName[0], color: pColor };
+    }
+
+    // ★ 自己的主页：从 playerProfile 读取真实数据
+    var desc = '这个人很懒 什么都没写';
+    var following = 128, followers = 0, postCount = 0;
+    if (isSelf && wbData.playerProfile) {
+        desc = wbData.playerProfile.desc || desc;
+        following = wbData.playerProfile.following || following;
+        followers = wbData.playerProfile.followers || followers;
+    }
+    // ★ 自己发过的微博数量 = feed 中 name === playerName 的帖子数
+    if (isSelf) {
+        postCount = wbData.feed.filter(function(post){ return (post.name||post.author) === pName; }).length;
+    } else {
+        var authorName = p.name || p.author;
+        postCount = wbData.feed.filter(function(post){ return (post.name||post.author) === authorName; }).length;
+        // 别人的 desc 从 accounts 里找
+        var acc = (wbData.accounts||[]).find(function(a){ return a.name === authorName; });
+        if (acc) { desc = acc.desc || desc; followers = acc.followers || 0; following = acc.following || 0; }
+    }
+
+    var extra = isSelf ? '<div style="padding:12px 16px;"><div style="padding:10px;text-align:center;background:#fff3ef;border-radius:8px;color:#ff6b2b;font-size:13px;cursor:pointer;" onclick="wbNav(\'visitors\')">查看访客记录 →</div></div>' : '';
+
+    // ★ 自己有多个账号时，显示账号切换入口
+    var switchBtn = '';
+    if (isSelf && wbData.playerAccounts && wbData.playerAccounts.length > 1) {
+        switchBtn = '<div style="padding:8px 16px;"><div style="padding:10px;text-align:center;background:#f5f5f5;border-radius:8px;color:#666;font-size:13px;cursor:pointer;" onclick="wbNav(\'accountSwitch\')">切换账号 (' + wbData.playerAccounts.length + '个)</div></div>';
+    }
+
+    return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'home\')">'+IC.back+'</div><div class="wb-detail-title">个人主页</div></div><div class="wb-body"><div class="wb-profile-header"><div class="wb-profile-top"><div class="wb-profile-avatar" style="background:'+(p.color||pColor)+'">'+(p.avatar||p.name[0]||pName[0])+'</div><div class="wb-profile-info"><div class="wb-profile-name">'+(p.name||p.author||pName)+'</div><div class="wb-profile-desc">'+desc+'</div></div></div><div class="wb-profile-stats"><div class="wb-profile-stat"><div class="wb-profile-stat-num">'+following+'</div><div class="wb-profile-stat-label">关注</div></div><div class="wb-profile-stat"><div class="wb-profile-stat-num">'+wbFmtNum(followers)+'</div><div class="wb-profile-stat-label">粉丝</div></div><div class="wb-profile-stat"><div class="wb-profile-stat-num">'+postCount+'</div><div class="wb-profile-stat-label">微博</div></div></div></div>'+switchBtn+extra+'</div></div>';
 }
 
 function renderWbVisitors(){
@@ -185,6 +265,36 @@ function renderWbVisitors(){
 
 function renderWbPublish(){
     return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'home\')">'+IC.back+'</div><div class="wb-detail-title">发微博</div></div><div class="wb-publish-page"><textarea class="wb-publish-textarea" id="wb-pub-text" placeholder="分享新鲜事..."></textarea><button class="wb-publish-btn" onclick="wbPublish()">发布</button></div></div>';
+}
+
+// ★ 账号切换页面
+function renderWbAccountSwitch() {
+    var list = (wbData.playerAccounts||[]).map(function(a) {
+        var isCurrent = (a.name === (typeof playerName!=='undefined'?playerName:'玩家'));
+        return '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:0.5px solid #f5f5f5;cursor:pointer;" onclick="wbSwitchAccount(\''+a.id+'\')"><div class="wb-post-avatar" style="background:'+a.color+';color:#fff;font-size:14px;">'+a.avatar+'</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#1a1a1a;">'+a.name+'</div><div style="font-size:12px;color:#999;margin-top:2px;">'+a.desc+'</div></div>'+(isCurrent?'<span style="font-size:12px;color:#ff6b2b;">当前</span>':'')+'</div>';
+    }).join('');
+    return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'profile\')">'+IC.back+'</div><div class="wb-detail-title">切换账号</div></div><div class="wb-body" style="background:#fff;">'+list+'</div></div>';
+}
+
+// ★ 切换当前活跃微博账号
+function wbSwitchAccount(accId) {
+    var acc = (wbData.playerAccounts||[]).find(function(a){ return a.id === accId; });
+    if (!acc) return;
+    // 更新全局 playerName/Color（影响发微博时的署名）
+    playerName = acc.name;
+    playerColor = acc.color;
+    wbData.playerProfile = acc;
+    wbNav('profile');
+}
+
+// ★ 动态添加玩家小号（由剧情驱动 —— 收到 PHONE_DATA 含 weibo_accounts 时调用）
+function wbAddPlayerAccount(account) {
+    if (!account || !account.name) return;
+    var exists = (wbData.playerAccounts||[]).some(function(a){ return a.id === account.id || a.name === account.name; });
+    if (exists) return;
+    account.isPlayer = true;
+    wbData.accounts.push(account);
+    wbData.playerAccounts.push(account);
 }
 
 function wbLike(i,btn){

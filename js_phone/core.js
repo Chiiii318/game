@@ -284,10 +284,12 @@ if (e.data.type === 'PHONE_RESTORE') {
                             if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
                             var convArr = wxData.conversations[chat.chatId];
                             chat.messages.forEach(function(msg) {
-                                var last = convArr[convArr.length - 1];
-                                if (last && last.message === msg.message && last.sender === msg.sender && last.isSelf === msg.isSelf) return;
-                                convArr.push(msg);
-                            });
+    // ★ 跟整段历史比，防止AI重复输出之前的消息
+    var isDup = convArr.some(function(existing) {
+        return existing.message === msg.message && existing.sender === msg.sender && existing.isSelf === msg.isSelf;
+    });
+    if (!isDup) convArr.push(msg);
+});
                             // ★ 同步到通讯录（去重）
                             if (!chat.isGroup) {
                                 var contactExists = false;
@@ -309,20 +311,43 @@ if (e.data.type === 'PHONE_RESTORE') {
                     });
                 }
 
-                else if (appId === 'weibo' && typeof wbData !== 'undefined') { items.forEach(function(p) { wbData.feed.unshift(p); }); }
+                else if (appId === 'weibo' && typeof wbData !== 'undefined') {
+    items.forEach(function(p) {
+        // ★ 去重：按 content+author 判断是否已存在
+        var isDup = wbData.feed.some(function(existing) {
+            return (existing.content || existing.text) === (p.content || p.text) && (existing.author || existing.name) === (p.author || p.name);
+        });
+        if (!isDup) wbData.feed.unshift(p);
+    });
+}
+
                 else if (appId === 'douyin' && typeof dyData !== 'undefined') { items.forEach(function(v) { dyData.videos.unshift(v); }); }
                 else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { xhsData.notes.unshift(n); }); }
                 else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { biliData.videos.unshift(v); }); }
                 else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); }); }
-                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
+                                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
                 else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
             });
+
+            // ★ 处理玩家微博账号列表（weibo_accounts 不是数组里的普通 appId，单独处理）
+            if (data.app_data.weibo_accounts && typeof wbData !== 'undefined') {
+                var accs = data.app_data.weibo_accounts;
+                if (Array.isArray(accs)) {
+                    accs.forEach(function(acc) {
+                        if (typeof wbAddPlayerAccount === 'function') wbAddPlayerAccount(acc);
+                    });
+                }
+            }
+            // ★ 处理玩家微博主页资料
+            if (data.app_data.weibo_profile && typeof wbData !== 'undefined') {
+                wbData.playerProfile = Object.assign(wbData.playerProfile || {}, data.app_data.weibo_profile);
+            }
+
             // ★ 数据写入后刷新当前正在看的视图，解决"永远刷新中"
             refreshCurrentView();
         }
         return;
     }
-
 
        if (e.data.type === 'PHONE_APP_DATA') {
     try {
@@ -369,10 +394,15 @@ if (e.data.type === 'PHONE_RESTORE') {
         }
         // ★ 微博
                 else if (app === 'weibo' && typeof wbData !== 'undefined') {
-            items.forEach(function(p) { wbData.feed.unshift(p); });
-            var activeWb = document.querySelector('.screen.active');
-            if (activeWb && activeWb.id === 'screen-weibo' && typeof wbNav === 'function') wbNav('home');
-        }
+    items.forEach(function(p) {
+        var isDup = wbData.feed.some(function(existing) {
+            return (existing.content || existing.text) === (p.content || p.text) && (existing.author || existing.name) === (p.author || p.name);
+        });
+        if (!isDup) wbData.feed.unshift(p);
+    });
+    var activeWb = document.querySelector('.screen.active');
+    if (activeWb && activeWb.id === 'screen-weibo' && typeof wbNav === 'function') wbNav('home');
+}
 
         else if (app === 'weibo_hotsearch' && typeof wbData !== 'undefined') {
             wbData.hotSearch = items.map(function(h) { return {text:h.text||h.title, tag:h.tag||'热', count:h.count||''}; });
