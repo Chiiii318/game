@@ -377,25 +377,11 @@ window.addEventListener('message', function(e) {
 else if (app === 'imessage' && typeof imData !== 'undefined') {
     mergeImChats(items);
 }
-        // 同 id 则合并,避免重复
-        var existing = imData.chats.find(function(c){ return c.id === norm.id; });
-        if (existing) {
-            existing.lastMsg = norm.lastMsg;
-            existing.time = norm.time;
-            existing.unread = norm.unread;
-            if (norm.msgs.length) existing.msgs = norm.msgs;
-        } else {
-            imData.chats.push(norm);
-        }
-    });
-    // 若正在看 iMessage,刷新
-    var activeIm = document.querySelector('.screen.active');
-    if (activeIm && activeIm.id === 'screen-imessage' && typeof imNav === 'function') imNav('list');
-}
 
     } catch(err) { console.error('PHONE_APP_DATA 解析失败', err); }
     return;
     }
+
 
            if (e.data.type === 'PHONE_REPLY') {
         if(typeof wxData !== 'undefined' && wxData.conversations[e.data.chatId]) {

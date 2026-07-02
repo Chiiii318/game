@@ -40,7 +40,7 @@ function renderTfMall() {
 }
 
 function renderTfTicket() {
-    return '<div class="tf-container"><div class="tf-navbar"><div class="tf-navbar-left"></div><div class="tf-navbar-center">购票</div><div class="tf-navbar-right"></div></div><div class="tf-body" style="background:#f5f5f5;"><div style="margin:16px;padding:16px;background:#fff;border-radius:8px;"><div style="font-size:16px;font-weight:600;margin-bottom:8px;">2026 时代少年团 巡回演唱会</div><div style="font-size:13px;color:#666;margin-bottom:16px;">特权购票通道暂未开启</div><button style="width:100%;padding:10px;background:#ccc;color:#fff;border:none;border-radius:4px;font-size:14px;">暂无排期</button></div></div>'+renderTabbar('ticket')+'</div>';
+    return '<div class="tf-container"><div class="tf-navbar"><div class="tf-navbar-left"></div><div class="tf-navbar-center">购票</div><div class="tf-navbar-right"></div></div><div class="tf-body" style="background:#f5f5f5;"><div style="margin:16px;padding:16px;background:#fff;border-radius:8px;"><div style="font-size:16px;font-weight:600;margin-bottom:8px;">2026 时代少年团 巡回演唱会</div><div style="font-size:13px;color:#666;margin-bottom:16px;">特权购票通道暂未开启</div><button style="width:100%;padding:10px;background:#ccc;color:#fff;border:none;border-radius:4px;font-size:14px;">暂无排期</button></div></div>'+renderTfTabbar('ticket')+'</div>';
 }
 
 function renderTfMe() {

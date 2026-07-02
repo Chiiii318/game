@@ -22,9 +22,9 @@ var DB_IC = {
 };
 
 function dbNav(view, data) {
+    var prevView = dbData.currentView;   // ← 新增：先存旧视图
     dbData.currentView = view;
-    
-    // 【修改点】：如果没数据，向AI呼叫！
+
     if (view === 'group' && (!dbData.posts[data] || dbData.posts[data].length === 0)) {
         if(typeof requestAppData==='function') requestAppData('douban');
     }
@@ -32,7 +32,7 @@ function dbNav(view, data) {
     var el = document.getElementById('screen-douban');
     if(view==='home') el.innerHTML=renderDbHome();
     else if(view==='group') { dbData.currentGroupId = data; el.innerHTML=renderDbGroup(); }
-    else if(view==='detail') { dbData._detailFrom = dbData.currentView||'group'; dbData.currentPostIdx = data; el.innerHTML=renderDbDetail(); }
+    else if(view==='detail') { dbData._detailFrom = (prevView==='detail'?'group':prevView)||'group'; dbData.currentPostIdx = data; el.innerHTML=renderDbDetail(); }
     else if(view==='discuss') el.innerHTML=renderDbDiscuss();
     else if(view==='publish') el.innerHTML=renderDbPublish();
     else if(view==='me') el.innerHTML=renderDbMe();

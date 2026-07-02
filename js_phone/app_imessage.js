@@ -44,7 +44,7 @@ function renderImList() {
 function renderImChat() {
     var chat = imData.chats.find(function(c){return c.id===imData.currentChatId;}) || {name:'未知号码'};
     var msgs = chat.msgs || [];
-    
+
     var html = msgs.map(function(msg){
         if(msg.type==='time') return '<div class="im-msg-time">'+msg.text+'</div>';
         var self = msg.isSelf;
@@ -53,5 +53,23 @@ function renderImChat() {
         return '<div class="'+cls+'"><div class="'+bubbleCls+'">'+msg.text+'</div></div>';
     }).join('');
 
-    return '<div class="im-container"><div class="im-navbar" style="background:rgba(249,249,249,0.94);font-size:12px;margin-bottom:2px;">'+(chat.avatar||chat.name[0]||'#')+'</div>border-bottom:0.5px solid #d1d1d6;"><div class="im-navbar-left" onclick="imNav(\'list\')"><div class="im-navbar-btn" style="color:#007aff;">'+IC.back+' <span style="font-size:16px;">信息</span></div></div><div class="im-navbar-center" style="display:flex;flex-direction:column;align-items:center;line-height:1.2;"><div style="width:26px;height:26px;border-radius:50%;background:'+(chat.color||'#8e8e93')+';color:#fff;display:flex;align-items:center;justify-content:center;<div style="font-size:10px;font-weight:400;color:#000;">'+chat.name+'</div></div><div class="im-navbar-right"></div></div><div class="im-body im-chat-page" id="im-chat-scroll">'+html+'</div><div class="im-input-bar"><div class="im-input-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke="#8e8e93" stroke-width="1.5"/><circle cx="12" cy="12.5" r="3" stroke="#8e8e93" stroke-width="1.5"/></svg></div><div class="im-input-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" stroke="#8e8e93" stroke-width="1.5"/><path d="M4 14l5-4 4 3 3-2 4 4" stroke="#8e8e93" stroke-width="1.5" stroke-linejoin="round"/></svg></div><div class="im-input-box"><input placeholder="短信/彩信" disabled><div class="im-input-send"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#34c759"/><path d="M12 7v10M8 11l4-4 4 4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>';
+    return '<div class="im-container">' +
+        '<div class="im-navbar" style="background:rgba(249,249,249,0.94);border-bottom:0.5px solid #d1d1d6;">' +
+            '<div class="im-navbar-left" onclick="imNav(\'list\')">' +
+                '<div class="im-navbar-btn" style="color:#007aff;">' + IC.back + ' <span style="font-size:16px;">信息</span></div>' +
+            '</div>' +
+            '<div class="im-navbar-center" style="display:flex;flex-direction:column;align-items:center;line-height:1.2;">' +
+                '<div style="width:26px;height:26px;border-radius:50%;background:' + (chat.color||'#8e8e93') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">' + (chat.avatar||chat.name[0]||'#') + '</div>' +
+                '<div style="font-size:10px;font-weight:400;color:#000;margin-top:2px;">' + chat.name + '</div>' +
+            '</div>' +
+            '<div class="im-navbar-right"></div>' +
+        '</div>' +
+        '<div class="im-body im-chat-page" id="im-chat-scroll">' + html + '</div>' +
+        '<div class="im-input-bar">' +
+            '<div class="im-input-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke="#8e8e93" stroke-width="1.5"/><circle cx="12" cy="12.5" r="3" stroke="#8e8e93" stroke-width="1.5"/></svg></div>' +
+            '<div class="im-input-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" stroke="#8e8e93" stroke-width="1.5"/><path d="M4 14l5-4 4 3 3-2 4 4" stroke="#8e8e93" stroke-width="1.5" stroke-linejoin="round"/></svg></div>' +
+            '<div class="im-input-box"><input placeholder="短信/彩信" disabled><div class="im-input-send"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#34c759"/><path d="M12 7v10M8 11l4-4 4 4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>' +
+        '</div>' +
+    '</div>';
 }
+
