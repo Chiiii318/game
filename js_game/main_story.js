@@ -478,17 +478,11 @@ if (pMatch) {
         }
 
                 // ★★★ 核心修复：将完整 PHONE_DATA（含 app_data）转发给手机 iframe ★★★
-        // 先缓存到待发送队列（因为 iframe 可能还没加载）
+                // 先缓存到待发送队列（因为 iframe 可能还没加载）
         if (!window._pendingPhoneMessages) window._pendingPhoneMessages = [];
         window._pendingPhoneMessages.push({ type: 'PHONE_DATA', data: newPhoneData });
-        if (newPhoneData.app_data) {
-            Object.keys(newPhoneData.app_data).forEach(appId => {
-                const appContent = newPhoneData.app_data[appId];
-                if (appContent && appContent.length > 0) {
-                    window._pendingPhoneMessages.push({ type: 'PHONE_APP_DATA', app: appId, payload: appContent });
-                }
-            });
-        }
+        // 注意：不再额外发送 PHONE_APP_DATA，因为 PHONE_DATA handler 已处理 app_data，
+        // 重复发送会导致消息被写入两次。
 
         // 尝试立刻发送（如果 iframe 已加载）
         const iframe = document.getElementById('phone-iframe');

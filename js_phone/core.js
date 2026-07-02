@@ -258,12 +258,12 @@ window.addEventListener('message', function(e) {
                 if (!items || !Array.isArray(items) || items.length === 0) return;
                 appCache[appId] = 'loaded';
 
-                               if (appId === 'wechat' && typeof wxData !== 'undefined') {
+                                               if (appId === 'wechat' && typeof wxData !== 'undefined') {
                     items.forEach(function(chat) {
                         if (chat.chatId && chat.messages) {
                             var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
                             if (!existing) {
-                                wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
+                                wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
                             } else {
                                 existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
                                 existing.time = '刚刚';
@@ -275,9 +275,27 @@ window.addEventListener('message', function(e) {
                                 if (last && last.message === msg.message && last.sender === msg.sender && last.isSelf === msg.isSelf) return;
                                 convArr.push(msg);
                             });
+                            // ★ 同步到通讯录（去重）
+                            if (!chat.isGroup) {
+                                var contactExists = false;
+                                wxData.contacts.forEach(function(g) {
+                                    (g.items || []).forEach(function(c) { if (c.id === chat.chatId) contactExists = true; });
+                                });
+                                if (!contactExists) {
+                                    var cName = chat.chatName || chat.chatId;
+                                    var letter = '#';
+                                    var first = cName[0];
+                                    if (/[a-zA-Z]/.test(first)) letter = first.toUpperCase();
+                                    else if (/[\u4e00-\u9fff]/.test(first)) letter = first;
+                                    var group = wxData.contacts.find(function(g) { return g.letter === letter; });
+                                    if (!group) { group = { letter: letter, items: [] }; wxData.contacts.push(group); }
+                                    group.items.push({ id: chat.chatId, name: cName, avatar: cName[0], color: chat.color || '#4a90d9' });
+                                }
+                            }
                         }
                     });
                 }
+
                 else if (appId === 'weibo' && typeof wbData !== 'undefined') { items.forEach(function(p) { wbData.feed.unshift(p); }); }
                 else if (appId === 'douyin' && typeof dyData !== 'undefined') { items.forEach(function(v) { dyData.videos.unshift(v); }); }
                 else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { xhsData.notes.unshift(n); }); }
@@ -286,9 +304,12 @@ window.addEventListener('message', function(e) {
                 else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
                 else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
             });
+            // ★ 数据写入后刷新当前正在看的视图，解决"永远刷新中"
+            refreshCurrentView();
         }
         return;
     }
+
 
        if (e.data.type === 'PHONE_APP_DATA') {
     try {
@@ -334,11 +355,12 @@ window.addEventListener('message', function(e) {
             if (activeWx && activeWx.id === 'screen-wechat' && typeof wxNav === 'function') wxNav(wxData.currentView || 'chatlist');
         }
         // ★ 微博
-        else if (app === 'weibo' && typeof wbData !== 'undefined') {
+                else if (app === 'weibo' && typeof wbData !== 'undefined') {
             items.forEach(function(p) { wbData.feed.unshift(p); });
             var activeWb = document.querySelector('.screen.active');
-            if (activeWb && activeWb.id === 'screen-weibo' && typeof wbNav === 'function') wbNav('feed');
+            if (activeWb && activeWb.id === 'screen-weibo' && typeof wbNav === 'function') wbNav('home');
         }
+
         else if (app === 'weibo_hotsearch' && typeof wbData !== 'undefined') {
             wbData.hotSearch = items.map(function(h) { return {text:h.text||h.title, tag:h.tag||'热', count:h.count||''}; });
         }
@@ -349,11 +371,12 @@ window.addEventListener('message', function(e) {
             if (activeDy && activeDy.id === 'screen-douyin' && typeof dyNav === 'function') dyNav('feed');
         }
         // ★ 小红书
-        else if (app === 'redbook' && typeof xhsData !== 'undefined') {
+                else if (app === 'redbook' && typeof xhsData !== 'undefined') {
             items.forEach(function(n) { xhsData.notes.unshift(n); });
             var activeXhs = document.querySelector('.screen.active');
-            if (activeXhs && activeXhs.id === 'screen-redbook' && typeof xhsNav === 'function') xhsNav('feed');
+            if (activeXhs && activeXhs.id === 'screen-redbook' && typeof xhsNav === 'function') xhsNav('home');
         }
+        
         // ★ B站
         else if (app === 'bilibili' && typeof biliData !== 'undefined') {
             items.forEach(function(v) { biliData.videos.unshift(v); });
