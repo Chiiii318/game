@@ -794,3 +794,6 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-plus-cell{display:flex;flex-direction:column;align-items:center;gap:6px;scroll-snap-align:start;}
 .wx-plus-icon{width:56px;height:56px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;}
 .wx-plus-label{font-size:11px;color:#666;}
+
+.wx-navbar-title{font-size:16px;font-weight:600;line-height:1.2;}
+.wx-navbar-subtitle{font-size:11px;color:#999;line-height:1.2;margin-top:1px;font-weight:400;}

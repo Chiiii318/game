@@ -156,13 +156,14 @@ function renderConversation() {
             var topCls = st==='pending'?'pending':'done';
             var click = st==='pending'?' onclick="showTransferAction('+idx+')"':'';
             content = '<div class="wx-transfer '+topCls+'"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+escapeHtml(msg.amount)+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+escapeHtml(msg.note||'转账')+'</div></div>';
-        } else if (msg.type === 'typing') {
-    return ''; // typing 不作为气泡渲染，改在导航栏标题下方提示
-}
+                } else if (msg.type === 'typing') {
+            return ''; // typing 不作为气泡渲染，改在导航栏标题下方提示
+        } else {
             // [fix #8] 长按消息弹出菜单
             var longpress = self ? ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',true)"' : ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',false)"';
             content = '<div class="wx-bubble"'+longpress+'>'+escapeHtml(msg.message||msg.text||'')+'</div>';
         }
+
         return '<div class="'+cls+'"><div class="wx-msg-avatar" style="background:'+avColor+'"'+clickAv+'>'+escapeHtml(avText)+'</div><div class="wx-msg-content">'+nameH+content+'</div></div>';
     }).join('');
 
@@ -171,7 +172,11 @@ function renderConversation() {
         '<div class="wx-navbar-btn" onclick="showGroupSettings()">'+IC.more+'</div>' :
         '<div class="wx-navbar-btn" onclick="showChatMore()">'+IC.more+'</div>';
 
-    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'chatlist\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+name+'</div><div class="wx-navbar-right">'+moreBtn+'</div></div>' +
+        var hasTyping = msgs.some(function(m){ return m.type === 'typing'; });
+    var centerHtml = '<div class="wx-navbar-title">'+name+'</div>' + (hasTyping ? '<div class="wx-navbar-subtitle">对方正在输入...</div>' : '');
+
+    return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'chatlist\')">'+IC.back+'</div></div><div class="wx-navbar-center">'+centerHtml+'</div><div class="wx-navbar-right">'+moreBtn+'</div></div>' +
+
         '<div class="wechat-conversation" id="wx-conv-scroll">'+html+'</div>' +
         '<div class="wx-input-bar"><div class="wx-input-btn">'+IC.mic+'</div><input id="wx-msg-input" placeholder="输入消息..." onkeydown="if(event.key===\'Enter\')sendMsg()" oninput="checkAtMention(this)"><div class="wx-input-btn" onclick="showPlusPanel()">'+IC.plusGray+'</div></div></div>';
 }
