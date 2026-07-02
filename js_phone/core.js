@@ -225,6 +225,20 @@ window.addEventListener('message', function(e) {
         wxData.chats = s.wechat.chats || [];
         wxData.conversations = s.wechat.conversations || {};
         wxData.moments = s.wechat.moments || [];
+                // ★ 用聊天列表反推通讯录分组
+        wxData.contacts = [];
+        (wxData.chats || []).forEach(function(c) {
+            if (c.isGroup) return;
+            var first = (c.name || '#')[0];
+            var letter = '#';
+            if (/[a-zA-Z]/.test(first)) letter = first.toUpperCase();
+            else if (/[\u4e00-\u9fff]/.test(first)) letter = first;
+            var group = wxData.contacts.find(function(g) { return g.letter === letter; });
+            if (!group) { group = { letter: letter, items: [] }; wxData.contacts.push(group); }
+            if (!group.items.some(function(x){ return x.id === c.id; })) {
+                group.items.push({ id: c.id, name: c.name, avatar: c.avatar || c.name[0], color: c.color || '#4a90d9' });
+            }
+        });
     }
     if (typeof wbData !== 'undefined')  wbData.feed  = s.weibo   || [];
     if (typeof dyData !== 'undefined')  dyData.videos = s.douyin || [];
@@ -381,11 +395,29 @@ if (e.data.type === 'PHONE_RESTORE') {
                     }
                     if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
                     var convArr = wxData.conversations[chat.chatId];
-                    chat.messages.forEach(function(msg) {
-                        var last = convArr[convArr.length - 1];
-                        if (last && last.message === msg.message && last.sender === msg.sender && last.isSelf === msg.isSelf) return;
-                        convArr.push(msg);
+                                        chat.messages.forEach(function(msg) {
+                        var isDup = convArr.some(function(existing) {
+                            return existing.message === msg.message && existing.sender === msg.sender && existing.isSelf === msg.isSelf;
+                        });
+                        if (!isDup) convArr.push(msg);
                     });
+                    // ★ 同步到通讯录（去重）
+                    if (!chat.isGroup) {
+                        var contactExists = false;
+                        wxData.contacts.forEach(function(g) {
+                            (g.items || []).forEach(function(c) { if (c.id === chat.chatId) contactExists = true; });
+                        });
+                        if (!contactExists) {
+                            var cName = chat.chatName || chat.chatId;
+                            var letter = '#';
+                            var first = cName[0];
+                            if (/[a-zA-Z]/.test(first)) letter = first.toUpperCase();
+                            else if (/[\u4e00-\u9fff]/.test(first)) letter = first;
+                            var group = wxData.contacts.find(function(g) { return g.letter === letter; });
+                            if (!group) { group = { letter: letter, items: [] }; wxData.contacts.push(group); }
+                            group.items.push({ id: chat.chatId, name: cName, avatar: cName[0], color: chat.color || '#4a90d9' });
+                        }
+                    }
                 }
             });
             // 如果当前正在看微信，刷新视图

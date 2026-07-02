@@ -11,26 +11,32 @@ var wbData = {
 
 // ★ 手机启动时，从父页面 gameState 提取玩家资料填充微博主页
 function wbInitPlayerProfile() {
+    var name = typeof playerName !== 'undefined' ? playerName : '玩家';
+    var color = typeof playerColor !== 'undefined' ? playerColor : '#ff9eaa';
+
     // 尝试从父页面拿玩家信息
     try {
         var gs = window.parent.gameState;
-        if (!gs) return;
-        var name = typeof playerName !== 'undefined' ? playerName : '玩家';
-        var color = typeof playerColor !== 'undefined' ? playerColor : '#ff9eaa';
-        
-        // ★ 主号
+        if (gs) {
+            if (gs.playerName) name = gs.playerName;
+            if (gs.playerColor) color = gs.playerColor;
+        }
+    } catch(e) { /* iframe 跨域可能失败，不阻塞 */ }
+
+    // ★ 兜底：无论是否获取到 gameState，都确保 playerProfile 和 accounts 有数据
+    if (!wbData.playerProfile) {
         wbData.playerProfile = {
             name: name,
             avatar: name[0],
             color: color,
             desc: '（主页简介会根据你的角色设定自动生成）',
-            following: 0,
+            following: 128,
             followers: 0,
             postCount: 0
         };
-        
-        // ★ 从角色卡里提取"多账号"信息（通用：如果剧情/角色卡提到有小号、皮下号，就动态创建）
-        // 先放一个主号进 accounts
+    }
+
+    if (!wbData.accounts || wbData.accounts.length === 0) {
         wbData.accounts = [{
             id: 'player_main',
             name: name,
@@ -42,10 +48,11 @@ function wbInitPlayerProfile() {
             followers: 0,
             isPlayer: true
         }];
-        // playerAccounts 也同步（用于切换逻辑）
+    }
+
+    if (!wbData.playerAccounts || wbData.playerAccounts.length === 0) {
         wbData.playerAccounts = wbData.accounts.filter(function(a){ return a.isPlayer; });
-        
-    } catch(e) { /* iframe 跨域可能失败，不阻塞 */ }
+    }
 }
 
 var WB_IC = {
@@ -70,6 +77,7 @@ function wbImgs(images){
 }
 
 function wbNav(view,data){
+    if (!wbData._inited) { wbData._inited = true; wbInitPlayerProfile(); }
     wbData.currentView=view;
     if (view === 'feed' && wbData.feed.length === 0 && typeof requestAppData==='function') requestAppData('weibo');
     if (view === 'hotsearch' && wbData.hotSearch.length === 0 && typeof requestAppData==='function') requestAppData('weibo_hotsearch');
@@ -211,8 +219,8 @@ function renderWbDm(){
 }
 
 function renderWbProfile(idx){
-    var pName = typeof playerName!=='undefined' ? playerName : '玩家';
-    var pColor = typeof playerColor!=='undefined' ? playerColor : '#ff9eaa';
+    var pName = wbCurrentName();
+    var pColor = wbCurrentColor();
     var p, isSelf;
 
     if (idx !== undefined) {
@@ -270,19 +278,29 @@ function renderWbPublish(){
 // ★ 账号切换页面
 function renderWbAccountSwitch() {
     var list = (wbData.playerAccounts||[]).map(function(a) {
-        var isCurrent = (a.name === (typeof playerName!=='undefined'?playerName:'玩家'));
+       var self=m.sender===wbCurrentName();
+return '<div class="wx-msg-row'+(self?' self':'')+'"><div class="wx-msg-avatar" style="background:'+(self?wbCurrentColor():dm.color)+'">'+(self?wbCurrentName()[0]:dm.avatar)+'</div><div class="wx-bubble" style="background:'+(self?'#fff3ef':'#fff')+';color:#333;">'+m.text+'</div></div>';
         return '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:0.5px solid #f5f5f5;cursor:pointer;" onclick="wbSwitchAccount(\''+a.id+'\')"><div class="wb-post-avatar" style="background:'+a.color+';color:#fff;font-size:14px;">'+a.avatar+'</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#1a1a1a;">'+a.name+'</div><div style="font-size:12px;color:#999;margin-top:2px;">'+a.desc+'</div></div>'+(isCurrent?'<span style="font-size:12px;color:#ff6b2b;">当前</span>':'')+'</div>';
     }).join('');
     return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'profile\')">'+IC.back+'</div><div class="wb-detail-title">切换账号</div></div><div class="wb-body" style="background:#fff;">'+list+'</div></div>';
+}
+
+// ★ 获取微博模块当前活跃账号名/颜色（优先用切换后的小号，否则用全局）
+function wbCurrentName() {
+    return wbData._activeAccountName || (typeof playerName !== 'undefined' ? playerName : '玩家');
+}
+function wbCurrentColor() {
+    return wbData._activeAccountColor || (typeof playerColor !== 'undefined' ? playerColor : '#ff9eaa');
 }
 
 // ★ 切换当前活跃微博账号
 function wbSwitchAccount(accId) {
     var acc = (wbData.playerAccounts||[]).find(function(a){ return a.id === accId; });
     if (!acc) return;
-    // 更新全局 playerName/Color（影响发微博时的署名）
-    playerName = acc.name;
-    playerColor = acc.color;
+    // ★ 只修改微博模块内部的当前账号变量，不篡改全局 playerName/playerColor
+    wbData._activeAccountId = accId;
+    wbData._activeAccountName = acc.name;
+    wbData._activeAccountColor = acc.color;
     wbData.playerProfile = acc;
     wbNav('profile');
 }
@@ -312,7 +330,7 @@ function wbComment(){
     var input=document.getElementById('wb-cmt-input');
     var t=input.value.trim();if(!t)return;
     if(!wbData.feed[wbData.currentPostIdx].comments) wbData.feed[wbData.currentPostIdx].comments=[];
-    wbData.feed[wbData.currentPostIdx].comments.unshift({name:(typeof playerName!=='undefined'?playerName:'我'),text:t,time:'刚刚',likes:'0'});
+    wbData.feed[wbData.currentPostIdx].comments.unshift({name:wbCurrentName(),text:t,time:'刚刚',likes:'0'});
     input.value='';
     wbNav('detail',wbData.currentPostIdx);
 }
@@ -321,15 +339,15 @@ function wbSendDm(){
     var input=document.getElementById('wb-dm-input');
     var t=input.value.trim();if(!t)return;
     var dm=wbData.dms.find(function(d){return d.id===wbData.currentDmId;});
-    dm.msgs.push({sender:(typeof playerName!=='undefined'?playerName:'我'),text:t});dm.lastMsg=t;
+    dm.msgs.push({sender:wbCurrentName(),text:t});dm.lastMsg=t;
     input.value='';wbNav('dm',wbData.currentDmId);
 }
 
 function wbPublish(){
     var t=document.getElementById('wb-pub-text').value.trim();
     if(!t){alert('请输入内容');return;}
-    var pn = typeof playerName!=='undefined'?playerName:'我';
-    var pc = typeof playerColor!=='undefined'?playerColor:'#ff9eaa';
+    var pn = wbCurrentName();
+var pc = wbCurrentColor();
     wbData.feed.unshift({id:'p'+Date.now(),name:pn,avatar:pn[0],color:pc,verified:false,time:'刚刚',text:t,imgs:[],reposts:0,comments:[],likes:0,liked:false});
     wbNav('home');
 }
