@@ -495,48 +495,13 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
             pushStoreToPhone();
         } catch (e) { console.error('手机数据解析失败', e); }
     }
-
     const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
-    ... // dMatch 处理块保持不变
-    renderGameUI(narrative, choices);
-    updatePhoneBadge();
-}   // ← parseAndRender 到此闭合
-
-// ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
-function ensurePhoneStore() {
-    if (!gameState.phoneStore) {
-        gameState.phoneStore = {
-            wechat: { chats: [], conversations: {}, moments: [] },
-            weibo: [], douban: {}, douyin: [], redbook: [],
-            bilibili: [], tfamily: [], imessage: []
-        };
-    }
-    return gameState.phoneStore;
-}
-
-function mergeIntoPhoneStore(pd) {
-    const store = ensurePhoneStore();
-    ... // 内部逻辑完全不变
-    (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
-}
-
-function pushStoreToPhone() {
-    const iframe = document.getElementById('phone-iframe');
-    const msg = { type: 'PHONE_STORE_SYNC', store: gameState.phoneStore, badges: null };
-    if (iframe && iframe.contentWindow && iframe.src.indexOf('phone.html') !== -1) {
-        iframe.contentWindow.postMessage(msg, '*');
-    } else {
-        window._pendingPhoneMessages = window._pendingPhoneMessages || [];
-        window._pendingPhoneMessages.push(msg);
-    }
-}
-
     if (dMatch) {
         dMatch[1].trim().split('\n').forEach(line => {
             const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
             if (!m) return;
             const key = m[1].trim(), val = m[2].trim();
-                        if (key === 'reputation') {
+            if (key === 'reputation') {
                 const n = parseInt(val);
                 if (!isNaN(n)) {
                     gameState.reputation = (val.startsWith('+')||val.startsWith('-')) ? Math.max(0, Math.min(100, gameState.reputation + n)) : Math.max(0, Math.min(100, n));
@@ -552,6 +517,74 @@ function pushStoreToPhone() {
             }
         });
     }
+    renderGameUI(narrative, choices);
+    updatePhoneBadge();
+}
+
+// ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
+function ensurePhoneStore() {
+    if (!gameState.phoneStore) {
+        gameState.phoneStore = {
+            wechat: { chats: [], conversations: {}, moments: [] },
+            weibo: [], douban: {}, douyin: [], redbook: [],
+            bilibili: [], tfamily: [], imessage: []
+        };
+    }
+    return gameState.phoneStore;
+}
+
+// 把一回合的 PHONE_DATA 增量合并进永久仓库（不再清空，只累加）
+function mergeIntoPhoneStore(pd) {
+    const store = ensurePhoneStore();
+    const ad = pd.app_data || {};
+    // 微信：按 chatId 合并对话，永久保留
+    (ad.wechat || []).forEach(chat => {
+        if (!chat.chatId) return;
+        let c = store.wechat.chats.find(x => x.id === chat.chatId);
+        if (!c) {
+            c = { id: chat.chatId, name: chat.chatName || chat.chatId,
+                  avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg:'', time:'刚刚' };
+            store.wechat.chats.push(c);
+        }
+        if (!store.wechat.conversations[chat.chatId]) store.wechat.conversations[chat.chatId] = [];
+        (chat.messages||[]).forEach(m => {
+            // ★ 微信消息去重：跟整段历史比对，防止AI重复推送叠加
+            const conv = store.wechat.conversations[chat.chatId];
+            const isDup = conv.some(x => x.message === m.message && x.sender === m.sender && x.isSelf === m.isSelf);
+            if (!isDup) conv.push(m);
+        });
+        const last = (chat.messages||[]).slice(-1)[0];
+        if (last) { c.lastMsg = last.message; c.time = '刚刚'; }
+    });
+    // 其他平台：直接累加进仓库数组
+    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+        (ad[app] || []).forEach(item => {
+            // ★ 通用去重：按内容+作者判断
+            const content = item.content || item.text || item.desc || item.title || '';
+            const author = item.author || item.name || '';
+            const isDup = (store[app] || []).some(existing => {
+                const ec = existing.content || existing.text || existing.desc || existing.title || '';
+                const ea = existing.author || existing.name || '';
+                return ec === content && ea === author && content !== '';
+            });
+            if (!isDup) store[app].unshift(item);
+        });
+    });
+    (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
+}
+
+// 把整份仓库快照推给手机Tab（切过去时一次性批量加载）
+function pushStoreToPhone() {
+    const iframe = document.getElementById('phone-iframe');
+    const msg = { type: 'PHONE_STORE_SYNC', store: gameState.phoneStore, badges: null };
+    if (iframe && iframe.contentWindow && iframe.src.indexOf('phone.html') !== -1) {
+        iframe.contentWindow.postMessage(msg, '*');
+    } else {
+        window._pendingPhoneMessages = window._pendingPhoneMessages || [];
+        window._pendingPhoneMessages.push(msg);
+    }
+}
+
     renderGameUI(narrative, choices);
     updatePhoneBadge();
 }
