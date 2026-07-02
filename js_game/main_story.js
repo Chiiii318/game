@@ -74,6 +74,32 @@ ${gameState.customModules || "无特殊暗线"}
 // 角色设定页功能支持
 // ══════════════════════════════════════
 
+// ★ 分步向导：控制第 n 步面板显隐 + 步骤指示器高亮
+function goStep(n) {
+    // 简单前置校验：第 1 步至少要有名字或粘贴内容才能进入第 2 步
+    if (n === 2) {
+        const quickShown = document.getElementById('player-tab-quick').style.display !== 'none';
+        const hasName = quickShown
+            ? document.getElementById('char-name').value.trim()
+            : document.getElementById('player-card-paste').value.trim();
+        if (!hasName) { showToast('请先填写你的姓名或粘贴角色卡'); return; }
+    }
+
+    for (let i = 1; i <= 3; i++) {
+        const panel = document.getElementById('wizard-step-' + i);
+        if (panel) panel.style.display = (i === n) ? 'block' : 'none';
+    }
+    // 步骤指示器高亮
+    document.querySelectorAll('#step-indicator .step-dot').forEach(dot => {
+        const s = parseInt(dot.dataset.step);
+        dot.classList.toggle('active', s === n);
+        dot.classList.toggle('done', s < n);
+    });
+    // 回到容器顶部，避免长表单切换后停留在中间
+    const container = document.querySelector('#page-character .container');
+    if (container) container.scrollTop = 0;
+}
+
 // 切换快速创建与粘贴导入
 function switchPlayerTab(tab) {
     document.querySelectorAll('#player-tabs .tab-item').forEach(el => el.classList.remove('active'));

@@ -100,132 +100,164 @@
             <div class="page-header-title">角色设定</div>
         </div>
 
-        <div class="section-title">👤 玩家角色卡</div>
-        <div class="tab-bar" id="player-tabs">
-            <div class="tab-item active" onclick="switchPlayerTab('quick')">✨ 快速创建</div>
-            <div class="tab-item" onclick="switchPlayerTab('paste')">📋 粘贴导入</div>
+        <!-- ★ 步骤指示器 -->
+        <div class="step-indicator" id="step-indicator">
+            <div class="step-dot active" data-step="1"><span class="step-num">①</span><span class="step-txt">我的人设</span></div>
+            <div class="step-line"></div>
+            <div class="step-dot" data-step="2"><span class="step-num">②</span><span class="step-txt">攻略对象</span></div>
+            <div class="step-line"></div>
+            <div class="step-dot" data-step="3"><span class="step-num">③</span><span class="step-txt">生成开局</span></div>
         </div>
 
-        <div id="player-tab-quick">
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:1;">
-                    <label class="label">姓名</label>
-                    <input class="input-field" id="char-name" placeholder="你的角色名" />
+        <!-- ══ 第 1 步：我的人设 ══ -->
+        <div class="wizard-step" id="wizard-step-1">
+            <div class="section-title">👤 玩家角色卡</div>
+            <div class="tab-bar" id="player-tabs">
+                <div class="tab-item active" onclick="switchPlayerTab('quick')">✨ 快速创建</div>
+                <div class="tab-item" onclick="switchPlayerTab('paste')">📋 粘贴导入</div>
+            </div>
+
+            <div id="player-tab-quick">
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label class="label">姓名</label>
+                        <input class="input-field" id="char-name" placeholder="你的角色名" />
+                    </div>
+                    <div class="form-group" style="width:80px;">
+                        <label class="label">年龄</label>
+                        <input class="input-field" id="char-age" type="number" placeholder="22" />
+                    </div>
+                    <div class="form-group" style="width:100px;">
+                        <label class="label">年份</label>
+                        <input class="input-field" id="char-year" type="number" placeholder="2026" />
+                    </div>
                 </div>
-                <div class="form-group" style="width:80px;">
-                    <label class="label">年龄</label>
-                    <input class="input-field" id="char-age" type="number" placeholder="22" />
-                </div>
-                <div class="form-group" style="width:100px;">
-                    <label class="label">年份</label>
-                    <input class="input-field" id="char-year" type="number" placeholder="2026" />
-                </div>
-            </div>
 
-            <div class="form-group" style="margin-top:10px;">
-                <label class="label">💡 一句话人设 / 自定义补充 (自由发挥，AI优先参考)</label>
-                <textarea class="input-field" id="char-custom" rows="3" placeholder="不想选下方的菜单？直接在这里写！例如：21岁中传学生，搞笑女E人，家境普通但心气高。AI会优先根据这段话来扩写！"></textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="label">职业身份 (可下拉选择，也可自由打字)</label>
-                <input class="input-field" id="char-job" onfocus="this.value=''" list="job-list" placeholder="请选择或输入(如：修空调的杀手)...">
-                <datalist id="job-list">
-                    <option value="高校学生（传媒/艺术/普通专业）">
-                    <option value="时代峰峻工作人员（企划/经纪/宣传等）">
-                    <option value="练习生">
-                    <option value="出道艺人">
-                    <option value="娱乐记者/媒体人">
-                    <option value="品牌公关/时尚行业">
-                    <option value="普通上班族（非娱乐行业）">
-                    <option value="自由职业">
-                </datalist>
-            </div>
-
-            <div class="form-group">
-                <label class="label">外貌特征 (可下拉选择，也可自由打字)</label>
-                <input class="input-field" id="char-look" onfocus="this.value=''" list="look-list" placeholder="请选择或输入...">
-                <datalist id="look-list">
-                    <option value="明艳甜妹，笑起来杀伤力很大">
-                    <option value="清冷御姐，不笑让人不敢靠近">
-                    <option value="邻家少年感，干净清爽">
-                    <option value="温柔知性，书卷气">
-                    <option value="浓颜系，五官立体有攻击性">
-                    <option value="淡颜系，耐看舒服">
-                </datalist>
-            </div>
-
-            <div class="form-group" style="margin-top:10px;">
-                <label class="label">🤫 隐藏暗线与秘密 (选填，AI将生成专属暴露危机)</label>
-                <textarea class="input-field" id="char-secret" rows="2" placeholder="例如：其实是私生饭/有多个小号的职黑/掌握高层黑料..."></textarea>
-            </div>
-
-            <div class="section-title" style="margin-top:20px; font-size:14px;">🎭 性格维度分析</div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <input class="input-field" id="char-soc" onfocus="this.value=''" list="soc-list" placeholder="社交倾向" style="font-size:13px;">
-                <datalist id="soc-list"><option value="外向充电"><option value="内向独处"><option value="外热内冷"><option value="外冷内热"></datalist>
-                
-                <input class="input-field" id="char-dec" onfocus="this.value=''" list="dec-list" placeholder="决策模式" style="font-size:13px;">
-                <datalist id="dec-list"><option value="理性主导"><option value="感性驱动"><option value="恋爱脑"><option value="冲动派"></datalist>
-                
-                <input class="input-field" id="char-fam" onfocus="this.value=''" list="fam-list" placeholder="家庭经济" style="font-size:13px;">
-                <datalist id="fam-list"><option value="普通工薪"><option value="小康中产"><option value="富裕家庭"><option value="财阀千金"><option value="单亲困难"></datalist>
-
-                <input class="input-field" id="char-lview" onfocus="this.value=''" list="lview-list" placeholder="恋爱观" style="font-size:13px;">
-                <datalist id="lview-list"><option value="享受地下恋"><option value="绝不地下"><option value="海王嘴硬"><option value="双标护短"></datalist>
-            </div>
-
-            <button class="btn btn-secondary" onclick="generatePlayerCard()" style="margin-top:15px;">✨ 用 AI 扩写丰满人设卡</button>
-            <div class="generated-card" id="gen-card-area" style="display:none; margin-top:15px;">
-                <textarea class="input-field" id="player-card-result" rows="10" style="font-size:13px; line-height:1.6;"></textarea>
-            </div>
-        </div>
-
-        <div id="player-tab-paste" style="display:none">
-            <div class="form-group">
-                <label class="label">粘贴你的角色卡</label>
-                <textarea class="input-field" id="player-card-paste" rows="10"></textarea>
-            </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="section-title">♥ 攻略对象卡</div>
-        <div id="target-cards-container">
-            <div class="target-card" data-index="0">
-                <div class="target-card-header">
-                    <span class="target-card-label">♥ 攻略对象 1</span>
-                </div>
-                <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
-                
                 <div class="form-group" style="margin-top:10px;">
-                    <label class="label">你与 TA 的初始关系</label>
-                    <input class="input-field target-rel" onfocus="this.value=''" list="rel-list" placeholder="请选择或自由输入...">
-                    <datalist id="rel-list">
-                        <option value="陌生人（完全不认识）">
-                        <option value="单向认知（粉丝/路人）">
-                        <option value="点头之交（眼熟）">
-                        <option value="工作关系（同事/合作）">
-                        <option value="私交好友">
-                        <option value="破镜重圆（前任）">
+                    <label class="label">💡 一句话人设 / 自定义补充 (自由发挥，AI优先参考)</label>
+                    <textarea class="input-field" id="char-custom" rows="3" placeholder="不想选下方的菜单？直接在这里写！例如：21岁中传学生，搞笑女E人，家境普通但心气高。AI会优先根据这段话来扩写！"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">职业身份 (可下拉选择，也可自由打字)</label>
+                    <input class="input-field" id="char-job" onfocus="this.value=''" list="job-list" placeholder="请选择或输入(如：修空调的杀手)...">
+                    <datalist id="job-list">
+                        <option value="高校学生（传媒/艺术/普通专业）">
+                        <option value="时代峰峻工作人员（企划/经纪/宣传等）">
+                        <option value="练习生">
+                        <option value="出道艺人">
+                        <option value="娱乐记者/媒体人">
+                        <option value="品牌公关/时尚行业">
+                        <option value="普通上班族（非娱乐行业）">
+                        <option value="自由职业">
                     </datalist>
                 </div>
+
+                <div class="form-group">
+                    <label class="label">外貌特征 (可下拉选择，也可自由打字)</label>
+                    <input class="input-field" id="char-look" onfocus="this.value=''" list="look-list" placeholder="请选择或输入...">
+                    <datalist id="look-list">
+                        <option value="明艳甜妹，笑起来杀伤力很大">
+                        <option value="清冷御姐，不笑让人不敢靠近">
+                        <option value="邻家少年感，干净清爽">
+                        <option value="温柔知性，书卷气">
+                        <option value="浓颜系，五官立体有攻击性">
+                        <option value="淡颜系，耐看舒服">
+                    </datalist>
+                </div>
+
+                <div class="form-group" style="margin-top:10px;">
+                    <label class="label">🤫 隐藏暗线与秘密 (选填，AI将生成专属暴露危机)</label>
+                    <textarea class="input-field" id="char-secret" rows="2" placeholder="例如：其实是私生饭/有多个小号的职黑/掌握高层黑料..."></textarea>
+                </div>
+
+                <div class="section-title" style="margin-top:20px; font-size:14px;">🎭 性格维度分析</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <input class="input-field" id="char-soc" onfocus="this.value=''" list="soc-list" placeholder="社交倾向" style="font-size:13px;">
+                    <datalist id="soc-list"><option value="外向充电"><option value="内向独处"><option value="外热内冷"><option value="外冷内热"></datalist>
+
+                    <input class="input-field" id="char-dec" onfocus="this.value=''" list="dec-list" placeholder="决策模式" style="font-size:13px;">
+                    <datalist id="dec-list"><option value="理性主导"><option value="感性驱动"><option value="恋爱脑"><option value="冲动派"></datalist>
+
+                    <input class="input-field" id="char-fam" onfocus="this.value=''" list="fam-list" placeholder="家庭经济" style="font-size:13px;">
+                    <datalist id="fam-list"><option value="普通工薪"><option value="小康中产"><option value="富裕家庭"><option value="财阀千金"><option value="单亲困难"></datalist>
+
+                    <input class="input-field" id="char-lview" onfocus="this.value=''" list="lview-list" placeholder="恋爱观" style="font-size:13px;">
+                    <datalist id="lview-list"><option value="享受地下恋"><option value="绝不地下"><option value="海王嘴硬"><option value="双标护短"></datalist>
+                </div>
+            </div>
+
+            <div id="player-tab-paste" style="display:none">
+                <div class="form-group">
+                    <label class="label">粘贴你的角色卡</label>
+                    <textarea class="input-field" id="player-card-paste" rows="10"></textarea>
+                </div>
+            </div>
+
+            <div class="wizard-nav">
+                <button class="btn btn-primary" onclick="goStep(2)">下一步 →</button>
             </div>
         </div>
-        <div class="add-target-btn" onclick="addTargetCard()">＋ 添加更多攻略对象</div>
 
-        <div class="divider"></div>
-        <div class="form-group">
-            <label class="label">叙事偏好</label>
-            <select class="input-field" id="narrative-pref">
-                <option value="balanced">⚖️ 平衡（甜虐交替）</option>
-                <option value="sweet">🍬 偏甜</option>
-                <option value="angst">🖤 偏虐</option>
-                <option value="realistic">📰 偏现实</option>
-            </select>
+        <!-- ══ 第 2 步：攻略对象 ══ -->
+        <div class="wizard-step" id="wizard-step-2" style="display:none;">
+            <div class="section-title">♥ 攻略对象卡</div>
+            <div id="target-cards-container">
+                <div class="target-card" data-index="0">
+                    <div class="target-card-header">
+                        <span class="target-card-label">♥ 攻略对象 1</span>
+                    </div>
+                    <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
+                    <div class="form-group" style="margin-top:10px;">
+                        <label class="label">你与 TA 的初始关系</label>
+                        <input class="input-field target-rel" onfocus="this.value=''" list="rel-list" placeholder="请选择或自由输入...">
+                        <datalist id="rel-list">
+                            <option value="陌生人（完全不认识）">
+                            <option value="单向认知（粉丝/路人）">
+                            <option value="点头之交（眼熟）">
+                            <option value="工作关系（同事/合作）">
+                            <option value="私交好友">
+                            <option value="破镜重圆（前任）">
+                        </datalist>
+                    </div>
+                </div>
+            </div>
+            <div class="add-target-btn" onclick="addTargetCard()">＋ 添加更多攻略对象</div>
+
+            <div class="divider"></div>
+            <div class="form-group">
+                <label class="label">叙事偏好</label>
+                <select class="input-field" id="narrative-pref">
+                    <option value="balanced">⚖️ 平衡（甜虐交替）</option>
+                    <option value="sweet">🍬 偏甜</option>
+                    <option value="angst">🖤 偏虐</option>
+                    <option value="realistic">📰 偏现实</option>
+                </select>
+            </div>
+
+            <div class="wizard-nav">
+                <button class="btn btn-secondary" onclick="goStep(1)">← 上一步</button>
+                <button class="btn btn-primary" onclick="goStep(3)">下一步 →</button>
+            </div>
         </div>
-        <button class="btn btn-primary" onclick="startGame()">🎬 进入游戏</button>
-        <div style="height:30px"></div>
+
+        <!-- ══ 第 3 步：生成人设 & 开局 ══ -->
+        <div class="wizard-step" id="wizard-step-3" style="display:none;">
+            <div class="section-title">✨ 生成我的人设</div>
+            <p style="font-size:13px; color:#888; line-height:1.6; margin-bottom:12px;">
+                点击下方按钮，AI 会根据第 1 步的信息扩写出完整人设卡。生成后可在文本框内自由修改，满意后点「开始游戏」正式开局。
+            </p>
+            <button class="btn btn-secondary" onclick="generatePlayerCard()">✨ 用 AI 扩写丰满人设卡</button>
+            <div class="generated-card" id="gen-card-area" style="display:none; margin-top:15px;">
+                <textarea class="input-field" id="player-card-result" rows="14" style="font-size:13px; line-height:1.6;"></textarea>
+            </div>
+
+            <div class="wizard-nav">
+                <button class="btn btn-secondary" onclick="goStep(2)">← 上一步</button>
+                <button class="btn btn-primary" onclick="startGame()">🎬 开始游戏</button>
+            </div>
+            <div style="height:30px"></div>
+        </div>
     </div>
 </div>
 
