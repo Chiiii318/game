@@ -945,13 +945,13 @@ function switchTab(tab) {
 // 数值Tab渲染（读取同一个 gameState，实时刷新）
 function renderValuesTab() {
     const el = document.getElementById('values-wrap'); if(!el) return;
-    let html = `<div class="section-title">👤 我的属性</div>
+let html = `<div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>我的属性</div>
       <div class="v-row">魅力 ${gameState.values.charm}</div>
       <div class="v-row">情商 ${gameState.values.eq}</div>
       <div class="v-row">人脉 ${gameState.values.connections}</div>
       <div class="v-row">精力 ${gameState.values.energy}/${gameState.values.energyMax}</div>
       <div class="v-row">舆论 ${gameState.reputation}/100</div>
-      <div class="section-title">♥ 攻略对象</div>`;
+      <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z" fill="#ff6b81" stroke="#ff6b81" stroke-width="1.6" stroke-linejoin="round"/></svg>攻略对象</div>`;
     Object.keys(gameState.targets).forEach(n => {
         const t = gameState.targets[n];
         html += `<div class="v-row">${n}：好感${t.affection} / 占有欲${t.possessiveness} / 信任${t.trust} / 警惕${t.alertness}</div>`;
