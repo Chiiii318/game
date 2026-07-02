@@ -131,9 +131,9 @@ async function generatePlayerCard() {
     const pCustom = document.getElementById('char-custom') ? document.getElementById('char-custom').value.trim() : '';
     
     // 组装性格维度 (防抖：万一没获取到则为空)
-          const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 家庭经济:${getVal('char-fam')}, 恋爱观:${getVal('char-lview')}`;
+          const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
 
-  const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
+const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 家庭经济:${getVal('char-fam')}, 恋爱观:${getVal('char-lview')}`;
 
        const aiPrompt = `你是《嫂嫂模拟器》的角色卡辅助生成AI。本游戏围绕中国娱乐公司"时代峰峻"（总部北京，分部重庆）及其旗下艺人展开。所有角色设定默认基于中国内地背景。
 
