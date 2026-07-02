@@ -817,33 +817,6 @@ function findContact(name) {
     return found;
 }
 
-// [fix #17] formatChatTime 实现
-function formatChatTime(timeStr) {
-    if (!timeStr) return '';
-    // 如果已经是格式化文字（如"刚刚"、"昨天"），直接返回
-    if (typeof timeStr === 'string' && !/^\d/.test(timeStr)) return timeStr;
-
-    var date = new Date(timeStr);
-    if (isNaN(date.getTime())) return timeStr;
-
-    var now = new Date();
-    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    var diffDays = Math.floor((today - msgDay) / 86400000);
-
-    if (diffDays === 0) {
-        // 今天：显示 HH:mm
-        return String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
-    } else if (diffDays === 1) {
-        return '昨天';
-    } else if (diffDays < 7) {
-        var days = ['周日','周一','周二','周三','周四','周五','周六'];
-        return days[date.getDay()];
-    } else {
-        return String(date.getMonth()+1).padStart(2,'0') + '/' + String(date.getDate()).padStart(2,'0');
-    }
-}
-
 function renderTabbar(active) {
     var tabs = [
         {id:'chat',label:'微信',icon:'<svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-4l-4 3.5V16H7a3 3 0 0 1-3-3V6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>'},

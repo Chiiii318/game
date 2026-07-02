@@ -19,10 +19,34 @@ function updateTimeDisplay() {
 updateTimeDisplay();
 
 // 游戏时间自动走：每30秒游戏内过1分钟
+// 每月天数(含闰年判断)
+function daysInMonth(year, month) {
+    if (month === 2) {
+        var leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+        return leap ? 29 : 28;
+    }
+    return [31,28,31,30,31,30,31,31,30,31,30,31][month - 1];
+}
+
+var WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
+
+// 前进一天,同时处理月/年进位和星期
+function advanceOneDay() {
+    gameTime.day++;
+    if (gameTime.day > daysInMonth(gameTime.year, gameTime.month)) {
+        gameTime.day = 1;
+        gameTime.month++;
+        if (gameTime.month > 12) { gameTime.month = 1; gameTime.year++; }
+    }
+    // 星期跟着走
+    var idx = WEEKDAYS.indexOf(gameTime.weekday);
+    if (idx >= 0) gameTime.weekday = WEEKDAYS[(idx + 1) % 7];
+}
+
 setInterval(function() {
     gameTime.minute++;
     if (gameTime.minute >= 60) { gameTime.minute = 0; gameTime.hour++; }
-    if (gameTime.hour >= 24) { gameTime.hour = 0; gameTime.day++; }
+    if (gameTime.hour >= 24) { gameTime.hour = 0; advanceOneDay(); }
     updateTimeDisplay();
 }, 30000);
 
@@ -39,11 +63,50 @@ function formatChatTime(ts) {
     if (displayDay <= 0) { displayMonth--; if(displayMonth<=0) displayMonth=12; displayDay += 30; }
     return displayMonth + '/' + displayDay + ' ' + time;
 }
+// iMessage 数据规范化：补齐列表页和聊天页都需要的字段
+function normalizeImChat(m) {
+    m = m || {};
+    return {
+        id:      m.id || ('im_' + Date.now() + '_' + Math.random().toString(36).slice(2,6)),
+        name:    m.name || '未知号码',
+        avatar:  m.avatar || '',
+        color:   m.color || '#8e8e93',
+        lastMsg: m.lastMsg || (m.msgs && m.msgs.length ? (m.msgs[m.msgs.length-1].text || '') : ''),
+        time:    m.time || '刚刚',
+        unread:  m.unread || 0,
+        sortKey: m.sortKey || Date.now(),
+        msgs:    Array.isArray(m.msgs) ? m.msgs : []
+    };
+}
+
+// iMessage 数据合并写入：同 id 更新，新 id 追加
+function mergeImChats(items) {
+    items.forEach(function(m) {
+        var norm = normalizeImChat(m);
+        var existing = imData.chats.find(function(c){ return c.id === norm.id; });
+        if (existing) {
+            existing.lastMsg = norm.lastMsg;
+            existing.time = norm.time;
+            existing.unread = norm.unread;
+            if (norm.msgs.length) existing.msgs = norm.msgs;
+        } else {
+            imData.chats.push(norm);
+        }
+    });
+    var active = document.querySelector('.screen.active');
+    if (active && active.id === 'screen-imessage' && typeof imNav === 'function') imNav('list');
+}
+
 
 // ═══ 导航 ═══
 function setStatusbarMode(m) { document.getElementById('statusbar').className = 'statusbar ' + m; }
 function setHomeBarMode(m) { var el = document.getElementById('home-bar'); el.className = 'home-bar ' + m; el.style.display = m === 'hidden' ? 'none' : 'block'; }
-function showScreen(id) { document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');}); document.getElementById(id).classList.add('active'); }
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+    var el = document.getElementById(id);
+    if (el) el.classList.add('active');
+    else console.warn('showScreen: 找不到屏幕 ' + id);
+}
 function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 // 锁屏上滑解锁手势
 (function(){
@@ -162,6 +225,7 @@ window.addEventListener('message', function(e) {
         if(typeof dyData !== 'undefined') { dyData.videos=[]; }
         if(typeof biliData !== 'undefined') { biliData.videos=[]; }
         if(typeof imData !== 'undefined') { imData.chats=[]; }
+        if(typeof tfData !== 'undefined') { tfData.feed=[]; }
         appCache = {};
         phoneInitialized = true;
         refreshCurrentView();
@@ -220,7 +284,7 @@ window.addEventListener('message', function(e) {
                 else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { biliData.videos.unshift(v); }); }
                 else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); }); }
                 else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
-                else if (appId === 'imessage' && typeof imData !== 'undefined') { items.forEach(function(m) { imData.chats.push(m); }); }
+                else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
             });
         }
         return;
@@ -309,10 +373,26 @@ window.addEventListener('message', function(e) {
             var activeTf = document.querySelector('.screen.active');
             if (activeTf && activeTf.id === 'screen-tfamily' && typeof tfNav === 'function') tfNav('home');
         }
-        // ★ iMessage
-        else if (app === 'imessage' && typeof imData !== 'undefined') {
-            items.forEach(function(m) { imData.chats.push(m); });
+// ★ iMessage
+else if (app === 'imessage' && typeof imData !== 'undefined') {
+    mergeImChats(items);
+}
+        // 同 id 则合并,避免重复
+        var existing = imData.chats.find(function(c){ return c.id === norm.id; });
+        if (existing) {
+            existing.lastMsg = norm.lastMsg;
+            existing.time = norm.time;
+            existing.unread = norm.unread;
+            if (norm.msgs.length) existing.msgs = norm.msgs;
+        } else {
+            imData.chats.push(norm);
         }
+    });
+    // 若正在看 iMessage,刷新
+    var activeIm = document.querySelector('.screen.active');
+    if (activeIm && activeIm.id === 'screen-imessage' && typeof imNav === 'function') imNav('list');
+}
+
     } catch(err) { console.error('PHONE_APP_DATA 解析失败', err); }
     return;
     }
@@ -345,6 +425,44 @@ function refreshCurrentView() {
     else if (id === 'screen-bilibili' && typeof biliNav === 'function') biliNav(biliData.currentView);
 }
 
+// ═══ 统一的"返回上一级"逻辑 ═══
+// 根据当前所在 App 及其内部视图，决定返回到二级页面还是退回桌面
+function goBack() {
+    var active = document.querySelector('.screen.active');
+    if (!active) return goDesktop();
+    var id = active.id;
+
+    // 微信：对话页 → 聊天列表
+    if (id === 'screen-wechat' && typeof wxData !== 'undefined') {
+        if (wxData.currentView === 'conversation') { if(typeof wxNav==='function') wxNav('chatlist'); return; }
+    }
+    // iMessage：聊天页 → 信息列表
+    if (id === 'screen-imessage' && typeof imData !== 'undefined') {
+        if (imData.currentView === 'chat') { if(typeof imNav==='function') imNav('list'); return; }
+    }
+    // TODO: 其他 App 若有二级页面，按同样模式在此补充分支
+    // 例如豆瓣帖子详情、微博正文页等，根据各自 xxxData.currentView 判断
+
+    // 默认：已在 App 首页，退回桌面
+    goDesktop();
+}
+
+// iMessage 数据规范化：补齐列表页和聊天页都需要的字段
+function normalizeImChat(m) {
+    m = m || {};
+    return {
+        id:      m.id || ('im_' + Date.now() + '_' + Math.random().toString(36).slice(2,6)),
+        name:    m.name || '未知号码',
+        avatar:  m.avatar || '',
+        color:   m.color || '#8e8e93',
+        lastMsg: m.lastMsg || (m.msgs && m.msgs.length ? (m.msgs[m.msgs.length-1].text || '') : ''),
+        time:    m.time || '刚刚',
+        unread:  m.unread || 0,
+        sortKey: m.sortKey || Date.now(),
+        msgs:    Array.isArray(m.msgs) ? m.msgs : []
+    };
+}
+
 // ═══ 通知主页面：手机 iframe 已加载完毕，可以接收消息了 ═══
 // iOS 左边缘右滑返回手势
 (function(){
@@ -368,17 +486,18 @@ function refreshCurrentView() {
     document.addEventListener('touchend', function(e){
         if(!swiping || !currentScreen) { swiping=false; return; }
         var dx = e.changedTouches[0].clientX - startX;
+        var screenToReset = currentScreen; // 闭包保存引用，避免 setTimeout 里被置空
         if(dx > 100) {
             currentScreen.style.transition = 'transform 0.25s ease';
             currentScreen.style.transform = 'translateX(100%)';
             setTimeout(function(){
-                currentScreen.style='';
-                goDesktop();
+                screenToReset.removeAttribute('style'); // 规范写法，兼容 iOS Safari
+                goBack();                               // 返回上一级，而非总是回桌面
             }, 250);
         } else {
             currentScreen.style.transition = 'transform 0.2s ease';
             currentScreen.style.transform = '';
-            setTimeout(function(){ currentScreen.style.transition=''; }, 200);
+            setTimeout(function(){ screenToReset.style.transition=''; }, 200);
         }
         swiping=false;
     }, {passive:true});
