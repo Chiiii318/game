@@ -142,6 +142,39 @@ function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); s
     }, {passive:true});
 })();
 function goDesktop() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
+
+// ═══ 桌面横向翻页手势 ═══
+(function(){
+    var startX=0, currentPage=0, totalPages=2, pagesEl=null;
+    var homeContent = null;
+
+    function getPages(){ return document.querySelector('.home-pages'); }
+    function getDots(){ return document.querySelectorAll('.home-page-dots .dot'); }
+
+    function setPage(idx){
+        currentPage = Math.max(0, Math.min(totalPages-1, idx));
+        var el = getPages();
+        if(el) el.style.transform = 'translateX(-'+(currentPage*50)+'%)';
+        getDots().forEach(function(d,i){ d.classList.toggle('active', i===currentPage); });
+    }
+
+    document.addEventListener('touchstart', function(e){
+        var home = document.getElementById('screen-home');
+        if(!home || !home.classList.contains('active')) { homeContent=null; return; }
+        homeContent = home;
+        pagesEl = getPages();
+        startX = e.touches[0].clientX;
+    }, {passive:true});
+
+    document.addEventListener('touchend', function(e){
+        if(!homeContent || !pagesEl) return;
+        var dx = e.changedTouches[0].clientX - startX;
+        if(dx < -50) setPage(currentPage+1);
+        else if(dx > 50) setPage(currentPage-1);
+        homeContent = null;
+    }, {passive:true});
+})();
+
 function openApp(id) {
     var badgeEl = document.getElementById('badge-' + id);
     if (badgeEl) { badgeEl.textContent = '0'; badgeEl.style.display = 'none'; }
@@ -586,6 +619,87 @@ function normalizeImChat(m) {
         swiping=false;
     }, {passive:true});
 })();
+// ═══ 手势：下拉刷新 ═══
+(function(){
+    var startY=0, pulling=false, target=null;
+    document.addEventListener('touchstart', function(e){
+        var active = document.querySelector('.screen.active');
+        if(!active || active.id==='screen-home' || active.id==='screen-lock') return;
+        var scrollEl = active.querySelector('.wx-body, .wb-body, .xhs-body, .db-body, .bili-body, .tf-body, .im-body');
+        if(!scrollEl || scrollEl.scrollTop > 5) return;
+        startY = e.touches[0].clientY;
+        pulling = true;
+        target = active;
+    }, {passive:true});
+
+    document.addEventListener('touchend', function(e){
+        if(!pulling) return;
+        pulling = false;
+        var dy = e.changedTouches[0].clientY - startY;
+        if(dy > 100 && target) {
+            // 触发下拉刷新：重新请求当前 App 数据
+            var appId = (target.id || '').replace('screen-','');
+            if(appId && typeof requestAppData === 'function') {
+                appCache[appId] = null; // 清除缓存标记以允许重新请求
+                requestAppData(appId);
+            }
+        }
+        target = null;
+    }, {passive:true});
+})();
+
+// ═══ 手势：底部上滑退出 App ═══
+(function(){
+    var startY=0, swiping=false;
+    document.addEventListener('touchstart', function(e){
+        var active = document.querySelector('.screen.active');
+        if(!active || active.id==='screen-home' || active.id==='screen-lock') return;
+        var rect = document.querySelector('.phone').getBoundingClientRect();
+        // 只在底部 30px 区域触发
+        if(e.touches[0].clientY < rect.bottom - 30) return;
+        startY = e.touches[0].clientY;
+        swiping = true;
+    }, {passive:true});
+
+    document.addEventListener('touchend', function(e){
+        if(!swiping) { return; }
+        swiping = false;
+        var dy = startY - e.changedTouches[0].clientY;
+        if(dy > 80) goDesktop();
+    }, {passive:true});
+})();
+
+// ═══ 手势：抖音上下滑切换视频 ═══
+(function(){
+    var startY=0, active=false;
+    document.addEventListener('touchstart', function(e){
+        var screen = document.getElementById('screen-douyin');
+        if(!screen || !screen.classList.contains('active')) { active=false; return; }
+        // 确保不在评论面板上操作
+        if(e.target.closest && e.target.closest('.dy-comments-panel.show')) { active=false; return; }
+        startY = e.touches[0].clientY;
+        active = true;
+    }, {passive:true});
+
+    document.addEventListener('touchend', function(e){
+        if(!active) return;
+        active = false;
+        var dy = startY - e.changedTouches[0].clientY;
+        if(Math.abs(dy) < 60) return;
+        // 上滑 = 下一个视频，下滑 = 上一个视频
+        if(typeof dyData !== 'undefined' && typeof dyNav === 'function') {
+            if(dy > 60) {
+                // 下一个
+                dyData.currentIndex = ((dyData.currentIndex || 0) + 1) % Math.max(1, (dyData.videos||[]).length);
+            } else {
+                // 上一个
+                dyData.currentIndex = ((dyData.currentIndex || 0) - 1 + (dyData.videos||[]).length) % Math.max(1, (dyData.videos||[]).length);
+            }
+            dyNav('feed');
+        }
+    }, {passive:true});
+})();
+
 window.addEventListener('DOMContentLoaded', function() {
     window.parent.postMessage({ type: 'PHONE_READY' }, '*');
 });

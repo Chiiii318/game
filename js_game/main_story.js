@@ -570,7 +570,46 @@ function mergeIntoPhoneStore(pd) {
             if (!isDup) store[app].unshift(item);
         });
     });
-    (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
+        (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
+
+    // ★ 存储裁剪：每个 App 保留最近 N 条，防止 phoneStore 无限膨胀
+    trimPhoneStore(store);
+}
+
+// ═══ phoneStore 裁剪逻辑 ═══
+function trimPhoneStore(store) {
+    const MAX_ITEMS = 50;           // 普通平台保留最近50条
+    const MAX_CHAT_MSGS = 80;      // 微信每个会话最多80条消息
+    const MAX_MOMENTS = 40;        // 朋友圈最多40条
+
+    // 微信会话裁剪
+    if (store.wechat) {
+        Object.keys(store.wechat.conversations || {}).forEach(id => {
+            const conv = store.wechat.conversations[id];
+            if (conv && conv.length > MAX_CHAT_MSGS) {
+                store.wechat.conversations[id] = conv.slice(-MAX_CHAT_MSGS);
+            }
+        });
+        if (store.wechat.moments && store.wechat.moments.length > MAX_MOMENTS) {
+            store.wechat.moments = store.wechat.moments.slice(0, MAX_MOMENTS);
+        }
+    }
+
+    // 各平台 feed 裁剪
+    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+        if (Array.isArray(store[app]) && store[app].length > MAX_ITEMS) {
+            store[app] = store[app].slice(0, MAX_ITEMS);
+        }
+    });
+
+    // 豆瓣按小组裁剪
+    if (store.douban && typeof store.douban === 'object') {
+        Object.keys(store.douban).forEach(g => {
+            if (Array.isArray(store.douban[g]) && store.douban[g].length > MAX_ITEMS) {
+                store.douban[g] = store.douban[g].slice(0, MAX_ITEMS);
+            }
+        });
+    }
 }
 
 // 把整份仓库快照推给手机Tab（切过去时一次性批量加载）
@@ -837,6 +876,10 @@ function switchTab(tab) {
     document.querySelector('.game-input-bar').style.display = tab === 'story' ? '' : 'none';
     document.getElementById('tab-phone').style.display     = tab === 'phone'  ? 'block' : 'none';
     document.getElementById('tab-values').style.display    = tab === 'values' ? 'block' : 'none';
+
+    // ★ 切换手机/数值Tab时隐藏顶部回合信息栏，剧情Tab恢复
+    const topbar = document.querySelector('.game-topbar');
+    if (topbar) topbar.style.display = tab === 'story' ? '' : 'none';
 
     if (tab === 'phone') {
         const iframe = document.getElementById('phone-iframe');
