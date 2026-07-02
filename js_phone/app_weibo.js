@@ -212,8 +212,8 @@ function renderWbDm(){
     var dm=wbData.dms.find(function(d){return d.id===wbData.currentDmId;});
     if(!dm) return '';
     var msgs=dm.msgs.map(function(m){
-        var self=m.sender===(typeof playerName!=='undefined'?playerName:'我');
-        return '<div class="wx-msg-row'+(self?' self':'')+'"><div class="wx-msg-avatar" style="background:'+(self?(typeof playerColor!=='undefined'?playerColor:'#ff9eaa'):dm.color)+'">'+( self?(typeof playerName!=='undefined'?playerName[0]:'我'):dm.avatar)+'</div><div class="wx-bubble" style="background:'+(self?'#fff3ef':'#fff')+';color:#333;">'+m.text+'</div></div>';
+        var self=m.sender===wbCurrentName();
+return '<div class="wx-msg-row'+(self?' self':'')+'"><div class="wx-msg-avatar" style="background:'+(self?wbCurrentColor():dm.color)+'">'+(self?wbCurrentName()[0]:dm.avatar)+'</div><div class="wx-bubble" style="background:'+(self?'#fff3ef':'#fff')+';color:#333;">'+m.text+'</div></div>';
     }).join('');
     return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'dmlist\')">'+IC.back+'</div><div class="wb-detail-title">'+dm.name+'</div></div><div class="wechat-conversation" id="wb-dm-scroll">'+msgs+'</div><div class="wb-comment-input"><input id="wb-dm-input" placeholder="发送私信..." onkeydown="if(event.key===\'Enter\')wbSendDm()"><button class="wb-comment-send" onclick="wbSendDm()">发送</button></div></div>';
 }
@@ -278,8 +278,7 @@ function renderWbPublish(){
 // ★ 账号切换页面
 function renderWbAccountSwitch() {
     var list = (wbData.playerAccounts||[]).map(function(a) {
-       var self=m.sender===wbCurrentName();
-return '<div class="wx-msg-row'+(self?' self':'')+'"><div class="wx-msg-avatar" style="background:'+(self?wbCurrentColor():dm.color)+'">'+(self?wbCurrentName()[0]:dm.avatar)+'</div><div class="wx-bubble" style="background:'+(self?'#fff3ef':'#fff')+';color:#333;">'+m.text+'</div></div>';
+        var isCurrent = (a.name === wbCurrentName());
         return '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:0.5px solid #f5f5f5;cursor:pointer;" onclick="wbSwitchAccount(\''+a.id+'\')"><div class="wb-post-avatar" style="background:'+a.color+';color:#fff;font-size:14px;">'+a.avatar+'</div><div style="flex:1;"><div style="font-size:14px;font-weight:600;color:#1a1a1a;">'+a.name+'</div><div style="font-size:12px;color:#999;margin-top:2px;">'+a.desc+'</div></div>'+(isCurrent?'<span style="font-size:12px;color:#ff6b2b;">当前</span>':'')+'</div>';
     }).join('');
     return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\'profile\')">'+IC.back+'</div><div class="wb-detail-title">切换账号</div></div><div class="wb-body" style="background:#fff;">'+list+'</div></div>';
