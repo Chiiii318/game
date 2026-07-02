@@ -16,6 +16,8 @@ function navTo(pageId) {
 function goBackFromSave() {
     // 如果 gameState 存在说明游戏正在进行中，退回游戏界面；否则退回主页
     if (gameState && gameState.round > 0) {
+        const pName = document.getElementById('char-name').value.trim() || '玩家';
+gameState.playerName = pName;
         navTo('page-game');
     } else {
         navTo('page-home');
@@ -457,14 +459,14 @@ async function sendToAI(userText) {
                 parseAndRender(fullText);
                 autoSave();
                 
-                                window.isRequesting = false; 
+                window.isRequesting = false;
                 setLoading(false); 
                 document.getElementById('game-send-btn').disabled = false;
             },
             onError: (err) => {
                 narrativeEl.textContent = '❌ 请求失败：' + err.message;
                 gameState.history.pop();
-                isRequesting = false; 
+                window.isRequesting = false;
                 setLoading(false); 
                 document.getElementById('game-send-btn').disabled = false;
             }
@@ -472,7 +474,7 @@ async function sendToAI(userText) {
     } catch (e) {
         narrativeEl.textContent = '❌ 请求出错：' + e.message;
         gameState.history.pop();
-        isRequesting = false; 
+        window.isRequesting = false;
         setLoading(false); 
         document.getElementById('game-send-btn').disabled = false;
     }
