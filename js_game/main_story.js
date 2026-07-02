@@ -98,7 +98,18 @@ function addTargetCard() {
   <textarea class="target-textarea" rows="6" placeholder="粘贴或输入攻略对象的人设卡（姓名、性格、背景等）"></textarea>
   <div class="target-rel-wrap">
     <label>你与 TA 的初始关系</label>
-    <input class="target-rel" type="text" list="rel-options" placeholder="陌生人/同事/青梅竹马..." onfocus="this.value=''">
+   div.innerHTML = `
+  <div class="target-card-header">
+    <span class="target-card-label">♥ 攻略对象 ${count + 1}</span>
+    <span class="delete-target" onclick="this.closest('.target-card').remove()">✕ 删除</span>
+  </div>
+  <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
+  <div class="form-group" style="margin-top:10px;">
+    <label class="label">你与 TA 的初始关系</label>
+    <input class="input-field target-rel" list="rel-list" placeholder="请选择或自由输入..." onfocus="this.value=''">
+  </div>
+`;
+
   </div>
 `;
     container.appendChild(div);
@@ -427,8 +438,8 @@ function parseAndRender(response) {
 
     const sMatch = response.match(/---STATUS---([\s\S]*?)(?=---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
     if (sMatch) {
-        const locMatch = sMatch[1].match(/location:\s*(.+)/);
-        const timeMatch = sMatch[1].match(/time:\s*(.+)/);
+const locMatch = sMatch[1].match(/location\s*[:：]\s*(.+)/);
+const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
         if (locMatch) gameState.location = locMatch[1].trim();
         if (timeMatch) {
             const timeStr = timeMatch[1].trim();
@@ -487,7 +498,7 @@ if (pMatch) {
     const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
     if (dMatch) {
         dMatch[1].trim().split('\n').forEach(line => {
-            const m = line.match(/^(\w+?):\s*([+-]?\d+|.+)/);
+            const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
             if (!m) return;
             const key = m[1].trim(), val = m[2].trim();
             if (key === 'reputation') {

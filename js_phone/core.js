@@ -171,7 +171,7 @@ window.addEventListener('message', function(e) {
         if (e.data.type === 'PHONE_DATA' && e.data.data) {
         var data = e.data.data;
         if (data.badges) {
-            var badgeMap = {wechat:'badge-wechat',weibo:'badge-weibo',douyin:'badge-douyin',redbook:'badge-redbook',bilibili:'badge-bilibili',douban:'badge-douban',imessage:'badge-imessage'};
+            var badgeMap = {wechat:'badge-wechat',weibo:'badge-weibo',douyin:'badge-douyin',redbook:'badge-redbook',bilibili:'badge-bilibili',douban:'badge-douban',imessage:'badge-imessage',tfamily:'badge-tfamily'};
             Object.keys(data.badges).forEach(function(k) {
                 var el = document.getElementById(badgeMap[k]);
                 if (el) { el.textContent = data.badges[k]; el.style.display = data.badges[k]>0 ? 'flex' : 'none'; }
