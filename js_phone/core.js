@@ -143,9 +143,10 @@ function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); s
 })();
 function goDesktop() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 function openApp(id) {
-    // 打开App时自动清除该App的桌面角标
     var badgeEl = document.getElementById('badge-' + id);
     if (badgeEl) { badgeEl.textContent = '0'; badgeEl.style.display = 'none'; }
+    // ★ Tab记忆：把当前打开的App回传父页面存进 gameState.lastPhoneApp
+    window.parent.postMessage({ type: 'PHONE_APP_OPENED', app: id }, '*');
 
     if (id === 'wechat') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-wechat'); if(typeof wxNav === 'function') wxNav('chatlist'); }
     else if (id === 'weibo') { setStatusbarMode('dark'); setHomeBarMode('dark'); showScreen('screen-weibo'); if(typeof wbNav === 'function') wbNav('home'); }
@@ -217,20 +218,32 @@ function requestAppData(appId) {
 window.addEventListener('message', function(e) {
     if (!e.data) return;
 
-    if (e.data.type === 'PHONE_INIT') {
-        if(typeof wxData !== 'undefined') { wxData.chats=[]; wxData.conversations={}; wxData.moments=[]; }
-        if(typeof wbData !== 'undefined') { wbData.feed=[]; wbData.hotSearch=[]; }
-        if(typeof dbData !== 'undefined') { dbData.posts={art:[],observe:[],emoji:[]}; dbData.discussing=[]; }
-        if(typeof xhsData !== 'undefined') { xhsData.notes=[]; }
-        if(typeof dyData !== 'undefined') { dyData.videos=[]; }
-        if(typeof biliData !== 'undefined') { biliData.videos=[]; }
-        if(typeof imData !== 'undefined') { imData.chats=[]; }
-        if(typeof tfData !== 'undefined') { tfData.feed=[]; }
-        appCache = {};
-        phoneInitialized = true;
-        refreshCurrentView();
-        return;
+    if (e.data.type === 'PHONE_STORE_SYNC' && e.data.store) {
+    var s = e.data.store;
+    // 微信：整份用全局仓库覆盖（全局仓库才是唯一真相）
+    if (typeof wxData !== 'undefined' && s.wechat) {
+        wxData.chats = s.wechat.chats || [];
+        wxData.conversations = s.wechat.conversations || {};
+        wxData.moments = s.wechat.moments || [];
     }
+    if (typeof wbData !== 'undefined')  wbData.feed  = s.weibo   || [];
+    if (typeof dyData !== 'undefined')  dyData.videos = s.douyin || [];
+    if (typeof xhsData !== 'undefined') xhsData.notes = s.redbook|| [];
+    if (typeof biliData !== 'undefined')biliData.videos = s.bilibili || [];
+    if (typeof tfData !== 'undefined')  tfData.feed  = s.tfamily || [];
+    if (typeof imData !== 'undefined')  imData.chats = s.imessage|| [];
+    if (typeof dbData !== 'undefined' && s.douban) dbData.posts = Object.assign({art:[],observe:[],emoji:[]}, s.douban);
+    phoneInitialized = true;
+    refreshCurrentView();
+    return;
+}
+
+// ★ 切回手机Tab时，自动停留在上次打开的App（Tab记忆逻辑）
+if (e.data.type === 'PHONE_RESTORE') {
+    var app = e.data.app || 'wechat';
+    if (typeof openApp === 'function') { unlockPhone(); openApp(app); }
+    return;
+}
 
         if (e.data.type === 'PHONE_DATA' && e.data.data) {
         var data = e.data.data;

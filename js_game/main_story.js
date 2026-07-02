@@ -236,13 +236,26 @@ async function startGame() {
     if (!window.apiConfig || !window.apiConfig.key) { showToast('请先配置API'); return; }
 
     gameState = {
-        round: 1, day: 1, timeOfDay: '上午', location: '未知', reputation: 0,
-        playerCard: playerCard, targetCards: targets,
-        narrativePref: document.getElementById('narrative-pref').value,
-        history: [], allPhoneData: [], phoneBadge: 0,
-        values: { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 },
-        targets: {}, customModules: ""
-    };
+    round: 1, day: 1, timeOfDay: '上午', location: '未知', reputation: 0,
+    playerCard: playerCard, targetCards: targets,
+    narrativePref: document.getElementById('narrative-pref').value,
+    history: [], phoneBadge: 0,
+    values: { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 },
+    targets: {}, customModules: "",
+    phoneStore: {                       // ★ 全局手机仓库
+        wechat: { chats: [], conversations: {}, moments: [] },
+        weibo: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: []
+    },
+    currentTab: 'story',                // ★ 当前底部Tab（默认剧情）
+    lastPhoneApp: 'wechat'             // ★ 手机内最后停留的App（Tab记忆）
+};
+// ★ 开局基础联系人：把每个攻略对象自动写入微信，避免空白
+targets.forEach((cardObj, idx) => { /* 原有解析 name 的逻辑保持不变 */ });
+Object.keys(gameState.targets).forEach(name => {
+    const id = 'wx_' + name;
+    gameState.phoneStore.wechat.chats.push({ id, name, avatar:name[0], color:'#4a90d9', lastMsg:'（还没有聊天记录）', time:'' });
+    gameState.phoneStore.wechat.conversations[id] = [];
+});
 
     targets.forEach((cardObj, idx) => {
         let name = '';
@@ -475,29 +488,64 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
 if (pMatch) {
     try {
         const newPhoneData = JSON.parse(pMatch[1].trim());
-        if (!gameState.allPhoneData) gameState.allPhoneData = [];
-        const lastPD = gameState.allPhoneData[gameState.allPhoneData.length - 1];
-        if (JSON.stringify(lastPD) !== JSON.stringify(newPhoneData)) {
-            gameState.allPhoneData.push(newPhoneData);
-            let newBadgeCount = 0;
-            if(newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadgeCount += (v||0));
-            else newBadgeCount = newPhoneData.badge || 1;
-            gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadgeCount;
-        }
-
-                // ★★★ 核心修复：将完整 PHONE_DATA（含 app_data）转发给手机 iframe ★★★
-                // 先缓存到待发送队列（因为 iframe 可能还没加载）
-        if (!window._pendingPhoneMessages) window._pendingPhoneMessages = [];
-        window._pendingPhoneMessages.push({ type: 'PHONE_DATA', data: newPhoneData });
-        // 注意：不再额外发送 PHONE_APP_DATA，因为 PHONE_DATA handler 已处理 app_data，
-        // 重复发送会导致消息被写入两次。
-
-        // 尝试立刻发送（如果 iframe 已加载）
-        const iframe = document.getElementById('phone-iframe');
-        if (iframe && iframe.src && iframe.src.indexOf('phone.html') !== -1 && iframe.contentWindow) {
-            _flushPhoneMessages(iframe);
-        }
+        // ★ 时间线联动：把本回合产生的所有内容累加进全局仓库 phoneStore
+        mergeIntoPhoneStore(newPhoneData);   // 见下方段落 D 新函数
+        // ★ 累计未读红点（供底部 Tab 显示）
+        let newBadge = 0;
+        if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v||0));
+        gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
+        // ★ 若手机Tab当前已挂载，实时把最新仓库快照推给它
+        pushStoreToPhone();                  // 见下方段落 D
     } catch (e) { console.error('手机数据解析失败', e); }
+}
+
+// ════ 全局手机数据仓库：剧情/手机/数值共用同一份 ════
+function ensurePhoneStore() {
+    if (!gameState.phoneStore) {
+        gameState.phoneStore = {
+            wechat: { chats: [], conversations: {}, moments: [] },
+            weibo: [], douban: {}, douyin: [], redbook: [],
+            bilibili: [], tfamily: [], imessage: []
+        };
+    }
+    return gameState.phoneStore;
+}
+
+// 把一回合的 PHONE_DATA 增量合并进永久仓库（不再清空，只累加）
+function mergeIntoPhoneStore(pd) {
+    const store = ensurePhoneStore();
+    const ad = pd.app_data || {};
+    // 微信：按 chatId 合并对话，永久保留
+    (ad.wechat || []).forEach(chat => {
+        if (!chat.chatId) return;
+        let c = store.wechat.chats.find(x => x.id === chat.chatId);
+        if (!c) {
+            c = { id: chat.chatId, name: chat.chatName || chat.chatId,
+                  avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg:'', time:'刚刚' };
+            store.wechat.chats.push(c);
+        }
+        if (!store.wechat.conversations[chat.chatId]) store.wechat.conversations[chat.chatId] = [];
+        (chat.messages||[]).forEach(m => store.wechat.conversations[chat.chatId].push(m));
+        const last = (chat.messages||[]).slice(-1)[0];
+        if (last) { c.lastMsg = last.message; c.time = '刚刚'; }
+    });
+    // 其他平台：直接累加进仓库数组
+    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+        (ad[app] || []).forEach(item => store[app].unshift(item));
+    });
+    (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
+}
+
+// 把整份仓库快照推给手机Tab（切过去时一次性批量加载）
+function pushStoreToPhone() {
+    const iframe = document.getElementById('phone-iframe');
+    const msg = { type: 'PHONE_STORE_SYNC', store: gameState.phoneStore, badges: null };
+    if (iframe && iframe.contentWindow && iframe.src.indexOf('phone.html') !== -1) {
+        iframe.contentWindow.postMessage(msg, '*');
+    } else {
+        window._pendingPhoneMessages = window._pendingPhoneMessages || [];
+        window._pendingPhoneMessages.push(msg);
+    }
 }
 
     const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
@@ -579,9 +627,9 @@ function renderGameUI(narrative, choices) {
     }
         document.getElementById('game-scroll').scrollTop = 0;
 
-    // 🌟 游戏开始后显示手机浮窗按钮
-    const fab = document.getElementById('phone-fab');
-    if (fab) fab.classList.add('show');
+// 🌟 游戏开始后显示底部三Tab导航栏
+const tabbar = document.getElementById('bottom-tabbar');
+if (tabbar) tabbar.style.display = 'flex';
 }
 
 function setLoading(show) {
@@ -617,7 +665,6 @@ window.addEventListener('message', async (e) => {
     if (!e.data) return;
     const iframe = document.getElementById('phone-iframe');
 
-    
     if (e.data.type === 'PHONE_READY') {
         if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
@@ -631,7 +678,12 @@ window.addEventListener('message', async (e) => {
         document.body.style.overflow = "";
     }
 
-    
+    // ★★★ 新增：手机Tab记忆 —— 记录玩家最后打开了哪个App ★★★
+    if (e.data.type === 'PHONE_APP_OPENED') {
+        if (gameState) gameState.lastPhoneApp = e.data.app;
+        return;
+    }
+
     // 拦截手机系统的交互请求
     if (e.data.type === 'PHONE_INTERACT') {
         await handlePhoneInteract(e.data);
@@ -646,21 +698,36 @@ async function handlePhoneInteract(data) {
     // 路由 1：处理微信实时聊天
     // ----------------------------------------------------
     if (data.action === 'wechat_reply') {
-        const messages = [
-            { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系状态：${JSON.stringify(gameState.targets)}。\n玩家在微信给"${data.chatName}"发了消息。只输出回复文字，语气自然简短，像真实的活人微信聊天。可以有多条回复，每条换行。` },
-            { role: 'user', content: `玩家发送：${data.userMessage}\n请生成"${data.chatName}"的回复：` }
-        ];
-        try {
-            const reply = await callAI(messages, null, 200);
-           iframe.contentWindow.postMessage({
-    type: 'PHONE_REPLY',
-    action: 'wechat_reply',
-    chatId: data.chatId,
-    chatName: data.chatName,
-    replies: reply.split('\n').filter(l => l.trim())
-}, '*');
-        } catch(e) { console.error("微信回复生成失败:", e); }
-    }
+    const store = ensurePhoneStore();
+    const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
+    // ① 玩家这条回复永久存入仓库
+    conv.push({ isSelf: true, sender: '我', message: data.userMessage });
+
+    const messages = [
+        { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
+最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。` },
+        { role: 'user', content: `玩家发送：${data.userMessage}` }
+    ];
+    try {
+        const raw = await callAI(messages, null, 300);
+        // ② 抽出数值变动并写回全局数值仓库（数值Tab会实时刷新）
+        const affM = raw.match(/###affection_(.+?):([+-]?\d+)###/);
+        if (affM && gameState.targets[affM[1]]) {
+            const t = gameState.targets[affM[1]];
+            t.affection = Math.max(0, Math.min(100, t.affection + parseInt(affM[2])));
+        }
+        const replies = raw.replace(/###.*?###/g, '').split('\n').filter(l => l.trim());
+        // ③ NPC回复永久入库
+        replies.forEach(t => conv.push({ isSelf:false, sender:data.chatName, color:'#4a90d9', message:t }));
+        const c = store.wechat.chats.find(x => x.id === data.chatId);
+        if (c) { c.lastMsg = replies.slice(-1)[0] || ''; c.time = '刚刚'; }
+        // ④ 同步给手机UI渲染 + 刷新数值Tab
+        iframe.contentWindow.postMessage({ type:'PHONE_REPLY', chatId:data.chatId, chatName:data.chatName, replies }, '*');
+        if (typeof renderValuesTab === 'function') renderValuesTab();
+        autoSave();
+    } catch(e) { console.error("微信回复生成失败:", e); }
+}
 
     // ----------------------------------------------------
     // 路由 2：处理社交平台动态按需加载 (调用 LoreDB)
@@ -748,23 +815,43 @@ function _flushPhoneMessages(iframe) {
     });
     window._pendingPhoneMessages = [];
 }
-function openPhone() {
-    const overlay = document.getElementById('phone-overlay');
-    const iframe = document.getElementById('phone-iframe');
-    // 第一次打开时才加载 phone.html（懒加载）
-       if (!iframe.src || iframe.src.indexOf('phone.html') === -1) {
-        iframe.src = 'phone.html';
-    }
-    overlay.classList.add('show');
-    document.body.style.overflow = 'hidden';
+// ★ 底部Tab切换：剧情/手机/数值，切换不清空各自进度
+function switchTab(tab) {
+    gameState.currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    // 剧情页 = page-game 的滚动区；手机/数值 = 独立 pane
+    document.getElementById('game-scroll').style.display   = tab === 'story'  ? '' : 'none';
+    document.querySelector('.game-input-bar').style.display = tab === 'story' ? '' : 'none';
+    document.getElementById('tab-phone').style.display     = tab === 'phone'  ? 'block' : 'none';
+    document.getElementById('tab-values').style.display    = tab === 'values' ? 'block' : 'none';
 
-    // 清除角标
-    if (gameState) { gameState.phoneBadge = 0; updatePhoneBadge(); }
+    if (tab === 'phone') {
+        const iframe = document.getElementById('phone-iframe');
+        if (!iframe.src || iframe.src.indexOf('phone.html') === -1) iframe.src = 'phone.html';
+        gameState.phoneBadge = 0; updatePhoneBadge();       // 清红点
+        pushStoreToPhone();                                  // 一次性批量加载全部缓存
+        // Tab记忆：自动回到上次打开的App
+        setTimeout(() => iframe.contentWindow &&
+            iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*'), 150);
+    }
+    if (tab === 'values' && typeof renderValuesTab === 'function') renderValuesTab();
 }
 
-function closePhone() {
-    document.getElementById('phone-overlay').classList.remove('show');
-    document.body.style.overflow = '';
+// 数值Tab渲染（读取同一个 gameState，实时刷新）
+function renderValuesTab() {
+    const el = document.getElementById('values-wrap'); if(!el) return;
+    let html = `<div class="section-title">👤 我的属性</div>
+      <div class="v-row">魅力 ${gameState.values.charm}</div>
+      <div class="v-row">情商 ${gameState.values.eq}</div>
+      <div class="v-row">人脉 ${gameState.values.connections}</div>
+      <div class="v-row">精力 ${gameState.values.energy}/${gameState.values.energyMax}</div>
+      <div class="v-row">舆论 ${gameState.reputation}/100</div>
+      <div class="section-title">♥ 攻略对象</div>`;
+    Object.keys(gameState.targets).forEach(n => {
+        const t = gameState.targets[n];
+        html += `<div class="v-row">${n}：好感${t.affection} / 占有欲${t.possessiveness} / 信任${t.trust} / 警惕${t.alertness}</div>`;
+    });
+    el.innerHTML = html;
 }
 
 function openHistory() {

@@ -284,18 +284,29 @@
     </div>
 </div>
 
-<!-- 📱 手机浮窗与iframe -->
-<div class="phone-fab" id="phone-fab" onclick="openPhone()">
-    <span class="phone-fab-icon">📱</span>
-    <span class="phone-fab-badge" id="phone-badge">0</span>
+<!-- 📱 手机Tab内容（常驻，不再浮窗遮挡）-->
+<div class="tab-pane" id="tab-phone" style="display:none;">
+    <div class="phone-frame-embed">
+        <iframe id="phone-iframe" src="about:blank"></iframe>
+    </div>
 </div>
 
-<div class="phone-overlay" id="phone-overlay">
-    <div style="position:relative;">
-        <div class="phone-close-btn" onclick="closePhone()">✕</div>
-        <div class="phone-frame">
-            <iframe id="phone-iframe" src="about:blank"></iframe>
-        </div>
+<!-- 📊 数值Tab内容 -->
+<div class="tab-pane" id="tab-values" style="display:none;">
+    <div class="values-wrap" id="values-wrap"></div>
+</div>
+
+<!-- ⬇️ 底部常驻三Tab导航栏 -->
+<div class="bottom-tabbar" id="bottom-tabbar" style="display:none;">
+    <div class="tab-btn active" data-tab="story" onclick="switchTab('story')">
+        <span class="tab-ic">📖</span><span>剧情</span>
+    </div>
+    <div class="tab-btn" data-tab="phone" onclick="switchTab('phone')">
+        <span class="tab-ic">📱</span><span>手机</span>
+        <span class="tab-badge" id="phone-badge" style="display:none;">0</span>
+    </div>
+    <div class="tab-btn" data-tab="values" onclick="switchTab('values')">
+        <span class="tab-ic">📊</span><span>数值</span>
     </div>
 </div>
 
