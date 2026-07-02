@@ -335,11 +335,11 @@ if (e.data.type === 'PHONE_RESTORE') {
     });
 }
 
-                else if (appId === 'douyin' && typeof dyData !== 'undefined') { items.forEach(function(v) { dyData.videos.unshift(v); }); }
-                else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { xhsData.notes.unshift(n); }); }
-                else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { biliData.videos.unshift(v); }); }
-                else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); }); }
-                                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
+                else if (appId === 'douyin' && typeof dyData !== 'undefined') { items.forEach(function(v) { var isDup = dyData.videos.some(function(existing) { return (existing.desc || existing.title) === (v.desc || v.title) && (existing.author || existing.name) === (v.author || v.name); }); if (!isDup) dyData.videos.unshift(v); }); }
+                else if (appId === 'redbook' && typeof xhsData !== 'undefined') { items.forEach(function(n) { var isDup = xhsData.notes.some(function(existing) { return (existing.title || existing.content) === (n.title || n.content) && (existing.author || existing.name) === (n.author || n.name); }); if (!isDup) xhsData.notes.unshift(n); }); }
+                else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { var isDup = biliData.videos.some(function(existing) { return existing.title === v.title && (existing.up || existing.author) === (v.up || v.author); }); if (!isDup) biliData.videos.unshift(v); }); }
+                else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; var isDup = dbData.posts[g].some(function(existing) { return existing.title === p.title && (existing.author || existing.name) === (p.author || p.name); }); if (!isDup) dbData.posts[g].unshift(p); }); }
+                else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { tfData.feed.unshift(p); }); }
                 else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
             });
 
@@ -441,26 +441,26 @@ if (e.data.type === 'PHONE_RESTORE') {
         }
         // ★ 抖音
         else if (app === 'douyin' && typeof dyData !== 'undefined') {
-            items.forEach(function(v) { dyData.videos.unshift(v); });
+    items.forEach(function(v) { var isDup = dyData.videos.some(function(existing) { return (existing.desc || existing.title) === (v.desc || v.title) && (existing.author || existing.name) === (v.author || v.name); }); if (!isDup) dyData.videos.unshift(v); });
             var activeDy = document.querySelector('.screen.active');
             if (activeDy && activeDy.id === 'screen-douyin' && typeof dyNav === 'function') dyNav('feed');
         }
         // ★ 小红书
-                else if (app === 'redbook' && typeof xhsData !== 'undefined') {
-            items.forEach(function(n) { xhsData.notes.unshift(n); });
+            else if (app === 'redbook' && typeof xhsData !== 'undefined') {
+    items.forEach(function(n) { var isDup = xhsData.notes.some(function(existing) { return (existing.title || existing.content) === (n.title || n.content) && (existing.author || existing.name) === (n.author || n.name); }); if (!isDup) xhsData.notes.unshift(n); });
             var activeXhs = document.querySelector('.screen.active');
             if (activeXhs && activeXhs.id === 'screen-redbook' && typeof xhsNav === 'function') xhsNav('home');
         }
         
         // ★ B站
         else if (app === 'bilibili' && typeof biliData !== 'undefined') {
-            items.forEach(function(v) { biliData.videos.unshift(v); });
+    items.forEach(function(v) { var isDup = biliData.videos.some(function(existing) { return existing.title === v.title && (existing.up || existing.author) === (v.up || v.author); }); if (!isDup) biliData.videos.unshift(v); });
             var activeBili = document.querySelector('.screen.active');
             if (activeBili && activeBili.id === 'screen-bilibili' && typeof biliNav === 'function') biliNav('home');
         }
         // ★ 豆瓣
         else if (app === 'douban' && typeof dbData !== 'undefined') {
-            items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; dbData.posts[g].unshift(p); });
+    items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; var isDup = dbData.posts[g].some(function(existing) { return existing.title === p.title && (existing.author || existing.name) === (p.author || p.name); }); if (!isDup) dbData.posts[g].unshift(p); });
             var activeDb = document.querySelector('.screen.active');
             if (activeDb && activeDb.id === 'screen-douban' && typeof dbNav === 'function') dbNav('group');
         }
