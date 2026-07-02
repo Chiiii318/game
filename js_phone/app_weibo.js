@@ -347,7 +347,9 @@ function wbPublish(){
     if(!t){alert('请输入内容');return;}
     var pn = wbCurrentName();
 var pc = wbCurrentColor();
-    wbData.feed.unshift({id:'p'+Date.now(),name:pn,avatar:pn[0],color:pc,verified:false,time:'刚刚',text:t,imgs:[],reposts:0,comments:[],likes:0,liked:false});
+    var newPost = {id:'p'+Date.now(),name:pn,avatar:pn[0],color:pc,verified:false,time:'刚刚',text:t,imgs:[],reposts:0,comments:[],likes:0,liked:false};
+    wbData.feed.unshift(newPost);
+    window.parent.postMessage({ type:'PHONE_INTERACT', action:'weibo_publish', post:newPost }, '*');
     wbNav('home');
 }
 

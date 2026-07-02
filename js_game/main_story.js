@@ -16,13 +16,12 @@ function navTo(pageId) {
 function goBackFromSave() {
     // 如果 gameState 存在说明游戏正在进行中，退回游戏界面；否则退回主页
     if (gameState && gameState.round > 0) {
-        const pName = document.getElementById('char-name').value.trim() || '玩家';
-gameState.playerName = pName;
         navTo('page-game');
     } else {
         navTo('page-home');
     }
 }
+
 // 点击主页“进入游戏”按钮时触发
 function checkApiAndStart() {
     // 1. 先检查有没有配置 API (假设你的 save.js 里有 loadApiConfig)
@@ -87,7 +86,13 @@ function goStep(n) {
         if (!hasName) { showToast('请先填写你的姓名或粘贴角色卡'); return; }
     }
 
+    if (n === 3) {
+        const hasTarget = [...document.querySelectorAll('.target-textarea')].some(ta => ta.value.trim());
+        if (!hasTarget) { showToast('请至少填写一个攻略对象的人设卡'); return; }
+    }
+
     for (let i = 1; i <= 3; i++) {
+
         const panel = document.getElementById('wizard-step-' + i);
         if (panel) panel.style.display = (i === n) ? 'block' : 'none';
     }
@@ -126,7 +131,7 @@ function addTargetCard() {
   <textarea class="input-field target-textarea" rows="4" placeholder="粘贴攻略对象人设卡..."></textarea>
   <div class="form-group" style="margin-top:10px;">
     <label class="label">你与 TA 的初始关系</label>
-    <input class="input-field target-rel" list="rel-list" placeholder="请选择或自由输入..." onfocus="this.value=''">
+    <input class="input-field target-rel" list="rel-list" placeholder="请选择或自由输入..." onfocus="this.select()">
   </div>
 `;
     container.appendChild(div);
@@ -277,8 +282,12 @@ async function startGame() {
     currentTab: 'story',                // ★ 当前底部Tab（默认剧情）
     lastPhoneApp: 'wechat'             // ★ 手机内最后停留的App（Tab记忆）
 };
+        // ★ 提取玩家姓名存入 gameState
+    gameState.playerName = document.getElementById('char-name').value.trim() || '玩家';
+
     // ① 先解析每个攻略对象的名字，填充 gameState.targets
     targets.forEach((cardObj, idx) => {
+
         let name = '';
         const patterns = [ /名字[：:]\s*(.+)/, /姓名[：:]\s*(.+)/, /角色[：:]\s*(.+)/, /^[【\[](.+?)[】\]]/m, /^(.{2,4})[,，\s/|·]/m ];
         for (const p of patterns) {
@@ -299,8 +308,8 @@ async function startGame() {
         // ★ 新游戏：清空手机 iframe 的旧数据
     window._pendingPhoneMessages = [];
     var phoneIframe = document.getElementById('phone-iframe');
-    if (phoneIframe && phoneIframe.contentWindow && phoneIframe.src && phoneIframe.src.indexOf('phone.html') !== -1) {
-        phoneIframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
+        if (phoneIframe && phoneIframe.contentWindow && phoneIframe.src && phoneIframe.src.indexOf('phone.html') !== -1) {
+        phoneIframe.contentWindow.postMessage({ type: 'PHONE_INIT', playerName: gameState.playerName }, '*');
     }
 
     navTo('page-game');
@@ -743,9 +752,9 @@ window.addEventListener('message', async (e) => {
     if (!e.data) return;
     const iframe = document.getElementById('phone-iframe');
 
-    if (e.data.type === 'PHONE_READY') {
+        if (e.data.type === 'PHONE_READY') {
         if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
+            iframe.contentWindow.postMessage({ type: 'PHONE_INIT', playerName: (gameState && gameState.playerName) || '玩家' }, '*');
         }
         _flushPhoneMessages(iframe);
         return;
@@ -810,9 +819,21 @@ async function handlePhoneInteract(data) {
 }
 
     // ----------------------------------------------------
+    // 路由 1.5：处理玩家在手机端发布微博后同步回 phoneStore
+    // ----------------------------------------------------
+    if (data.action === 'weibo_publish') {
+        const store = ensurePhoneStore();
+        if (!Array.isArray(store.weibo)) store.weibo = [];
+        store.weibo.unshift(data.post);
+        autoSave();
+        return;
+    }
+
+    // ----------------------------------------------------
     // 路由 2：处理社交平台动态按需加载 (调用 LoreDB)
     // ----------------------------------------------------
     if (data.action === 'load_app') {
+
         // 1. 获取当前游戏里涉及的爱豆名单（为了精准提取黑料）
         const targetIdols = Object.keys(gameState.targets);
         

@@ -31,6 +31,7 @@ function loadSave(slot) {
     try {
         const parsed = JSON.parse(data);
         gameState = parsed.gameState;
+        migrateSave(gameState);
         loadApiConfig();
         navTo('page-game');
 
@@ -40,7 +41,9 @@ function loadSave(slot) {
             parseAndRender(lastAI.content);
         } else {
             document.getElementById('game-narrative').textContent = '存档已加载，等待继续...';
+            document.getElementById('bottom-tabbar').style.display = 'flex';
         }
+
         showToast('存档已加载');
     } catch (e) {
         showToast('存档数据损坏');
@@ -123,4 +126,13 @@ function importSave(event) {
     };
     reader.readAsText(file);
     event.target.value = '';
+}
+
+
+function migrateSave(gs) {
+    if (!gs.phoneStore) gs.phoneStore = { wechat:{ chats:[], conversations:{}, moments:[] }, weibo:[], douban:{}, douyin:[], redbook:[], bilibili:[], tfamily:[], imessage:[] };
+    if (!gs.currentTab) gs.currentTab = 'story';
+    if (!gs.lastPhoneApp) gs.lastPhoneApp = 'wechat';
+    if (!gs.values) gs.values = { charm:50, eq:50, connections:30, energy:100, energyMax:100 };
+    if (!gs.phoneBadge && gs.phoneBadge !== 0) gs.phoneBadge = 0;
 }

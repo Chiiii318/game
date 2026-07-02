@@ -251,7 +251,14 @@ function requestAppData(appId) {
 window.addEventListener('message', function(e) {
     if (!e.data) return;
 
+    // ★ 收到父页面初始化消息，更新玩家姓名
+    if (e.data.type === 'PHONE_INIT') {
+        if (e.data.playerName) playerName = e.data.playerName;
+        return;
+    }
+
     if (e.data.type === 'PHONE_STORE_SYNC' && e.data.store) {
+
     var s = e.data.store;
     // 微信：整份用全局仓库覆盖（全局仓库才是唯一真相）
     if (typeof wxData !== 'undefined' && s.wechat) {
