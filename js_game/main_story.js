@@ -255,10 +255,18 @@ async function startGame() {
         gameState.targets[name] = { affection: 0, possessiveness: '低', trust: 50, alertness: 20 };
     });
 
+        // ★ 新游戏：清空手机 iframe 的旧数据
+    window._pendingPhoneMessages = [];
+    var phoneIframe = document.getElementById('phone-iframe');
+    if (phoneIframe && phoneIframe.contentWindow && phoneIframe.src && phoneIframe.src.indexOf('phone.html') !== -1) {
+        phoneIframe.contentWindow.postMessage({ type: 'PHONE_INIT' }, '*');
+    }
+
     navTo('page-game');
     renderGameUI('', []);
     await generateCustomWorldline(); // 触发世界线预演算！
 }
+
 
 // 动态世界线生成器 (后台幕后演算你的神级规则)
 async function generateCustomWorldline() {
