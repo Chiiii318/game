@@ -107,7 +107,10 @@ function importSave(event) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            if (data.auto) localStorage.setItem('saosao_auto_save', data.auto);
+        if (data.auto) {
+    const val = typeof data.auto === 'string' ? data.auto : JSON.stringify(data.auto);
+    localStorage.setItem('saosao_auto_save', val);
+}
             for (let i = 1; i <= 5; i++) {
                 if (data['slot_' + i]) localStorage.setItem('saosao_save_' + i, data['slot_' + i]);
             }

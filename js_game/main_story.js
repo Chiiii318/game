@@ -91,14 +91,6 @@ function addTargetCard() {
     div.className = 'target-card';
     div.dataset.index = count;
     div.innerHTML = `
-  <div class="card-header">
-    <span>♥ 攻略对象 ${count + 1}</span>
-    <span class="delete-target" onclick="this.closest('.target-card').remove()">✕ 删除</span>
-  </div>
-  <textarea class="target-textarea" rows="6" placeholder="粘贴或输入攻略对象的人设卡（姓名、性格、背景等）"></textarea>
-  <div class="target-rel-wrap">
-    <label>你与 TA 的初始关系</label>
-   div.innerHTML = `
   <div class="target-card-header">
     <span class="target-card-label">♥ 攻略对象 ${count + 1}</span>
     <span class="delete-target" onclick="this.closest('.target-card').remove()">✕ 删除</span>
@@ -107,9 +99,6 @@ function addTargetCard() {
   <div class="form-group" style="margin-top:10px;">
     <label class="label">你与 TA 的初始关系</label>
     <input class="input-field target-rel" list="rel-list" placeholder="请选择或自由输入..." onfocus="this.value=''">
-  </div>
-`;
-
   </div>
 `;
     container.appendChild(div);
@@ -317,6 +306,9 @@ ${relationDesc}
 }
 
 async function sendFirstRound() {
+    if (window.isRequesting) return;       // ← 新增：防止重复触发
+    window.isRequesting = true;            // ← 新增：标记请求开始
+
     const narrativeEl = document.getElementById('game-narrative');
     narrativeEl.textContent = '...'; 
     setLoading(true);
@@ -330,24 +322,31 @@ async function sendFirstRound() {
         gameState.history.push({ role: 'user', content: '[游戏开始]' });
 
         await callAIStream(messages, {
-            onChunk: (chunk, fullText) => {
-                let displayStr = fullText;
-                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-                if (nMatch) {
-                    displayStr = nMatch[1].trim();
-                } else if (fullText.includes('---')) {
-                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
-                }
-                narrativeEl.innerHTML = displayStr.replace(/\n/g, '<br>');
-            },
+        onChunk: (chunk, fullText) => {
+    let displayStr = fullText;
+    const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+    if (nMatch) {
+        displayStr = nMatch[1].trim();
+    } else if (fullText.includes('---')) {
+        displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+    }
+    narrativeEl.innerHTML = displayStr
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+},
+
             onDone: (fullText) => {
                 gameState.history.push({ role: 'assistant', content: fullText });
                 parseAndRender(fullText);
                 autoSave();
+                window.isRequesting = false;   // ← 新增：请求完成，解锁
                 setLoading(false);
             },
             onError: (err) => {
                 narrativeEl.textContent = '❌ 请求失败：' + err.message;
+                window.isRequesting = false;   // ← 新增：出错也要解锁
                 setLoading(false);
             }
         });
@@ -357,6 +356,7 @@ async function sendFirstRound() {
     setLoading(false);
 }
 }
+
 
 async function sendPlayerInput() {
     if (isRequesting) return;
@@ -388,18 +388,21 @@ async function sendToAI(userText) {
     try {
         // 核心修改：调用流式函数 callAIStream
         await callAIStream(messages, {
-            onChunk: (chunk, fullText) => {
-                // 流式解析：提取 ---NARRATIVE--- 之后，其他 --- 标签之前的内容实时显示
-                let displayStr = fullText;
-                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-                if (nMatch) {
-                    displayStr = nMatch[1].trim();
-                } else if (fullText.includes('---')) {
-                    // 如果没找到 NARRATIVE 但有其他标签，尝试清理掉前面的标签
-                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
-                }
-                narrativeEl.innerHTML = displayStr.replace(/\n/g, '<br>');
-            },
+       onChunk: (chunk, fullText) => {
+    let displayStr = fullText;
+    const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+    if (nMatch) {
+        displayStr = nMatch[1].trim();
+    } else if (fullText.includes('---')) {
+        displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+    }
+    narrativeEl.innerHTML = displayStr
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+},
+
             onDone: (fullText) => {
                 // 完全接收完毕后，存入历史，并调用完整的解析逻辑
                 gameState.history.push({ role: 'assistant', content: fullText });
