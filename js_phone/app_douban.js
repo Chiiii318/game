@@ -63,7 +63,8 @@ function renderDbDetail(){
     var backTo = dbData._detailFrom || 'group';
     var p = (dbData.posts[dbData.currentGroupId]||[])[dbData.currentPostIdx];
     if(!p) return '';
-    var cmts = (p.comments||[]).map(function(c,i){
+// ★ 修复：AI 生成的 comments 可能是数字(评论数)而非数组
+var cmts = (Array.isArray(p.comments)?p.comments:[]).map(function(c,i){
         var isAuthor = c.name===(p.author||'已注销') ? '<span class="db-author-tag">楼主</span>' : '';
         return '<div class="db-cmt-item"><div class="db-cmt-avatar">'+c.name[0]+'</div><div class="db-cmt-body"><div class="db-cmt-name">'+c.name+isAuthor+'</div><div class="db-cmt-time">'+(c.time||'刚刚')+'</div><div class="db-cmt-text">'+(c.text||c.content)+'</div></div><div class="db-cmt-like" onclick="dbLikeCmt('+i+',this)">'+DB_IC.like+' <span>'+(c.likes||0)+'</span></div></div>';
     }).join('');

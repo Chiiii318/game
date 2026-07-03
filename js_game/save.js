@@ -27,23 +27,21 @@ function loadSave(slot) {
     const key = slot === 'auto' ? 'saosao_auto_save' : 'saosao_save_' + slot;
     const data = localStorage.getItem(key);
     if (!data) { showToast('该槽位无存档'); return; }
-
     try {
         const parsed = JSON.parse(data);
         gameState = parsed.gameState;
         migrateSave(gameState);
         loadApiConfig();
         navTo('page-game');
-
-        // 重新渲染当前界面
+        // ★ 修复：读档时只渲染叙事/选项/状态，跳过 PHONE_DATA 重解析
+        // （phoneStore 已在 gameState 中完整保存，重新解析会触发 JSON 报错且产生重复数据）
         const lastAI = [...gameState.history].reverse().find(h => h.role === 'assistant');
         if (lastAI) {
-            parseAndRender(lastAI.content);
+            parseAndRender(lastAI.content, true); // ← 传入 skipPhone 标志
         } else {
             document.getElementById('game-narrative').textContent = '存档已加载，等待继续...';
             document.getElementById('bottom-tabbar').style.display = 'flex';
         }
-
         showToast('存档已加载');
     } catch (e) {
         showToast('存档数据损坏');

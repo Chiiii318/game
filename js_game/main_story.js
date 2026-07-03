@@ -492,7 +492,7 @@ async function sendToAI(userText) {
 // ══════════════════════════════════════
 // 解析与界面渲染
 // ══════════════════════════════════════
-function parseAndRender(response) {
+function parseAndRender(response, skipPhone) {
     let narrative = '';
     const nMatch = response.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
     if (nMatch) narrative = nMatch[1].trim(); else narrative = response.replace(/---[\w_]+---[\s\S]*$/m, '').trim();
@@ -520,8 +520,9 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
         });
     }
 
-            // 解析全平台手机数据 (JSON格式提取)
-            const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+    // 解析全平台手机数据 (JSON格式提取)
+    // ★ 修复：读档时 skipPhone=true 跳过，避免对已入库的老数据重复解析报错
+    const pMatch = !skipPhone && response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
     if (pMatch) {
         try {
             const rawJson = pMatch[1].trim()
