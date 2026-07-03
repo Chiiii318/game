@@ -533,7 +533,15 @@ if (data.app_data) {
                         var isDup = convArr.some(function(existing) {
                             return existing.message === msg.message && existing.sender === msg.sender && existing.isSelf === msg.isSelf;
                         });
-                        if (!isDup) convArr.push(msg);
+                                    if (!isDup) {
+                                        // ★ 自动插入时间标记（距上条消息超过5分钟则显示时间）
+                                        var lastMsg = convArr[convArr.length - 1];
+                                        if (!lastMsg || lastMsg.type === 'time' || !lastMsg._ts || (Date.now() - (lastMsg._ts||0) > 300000)) {
+                                            convArr.push({type:'time', text: formatGameTime()});
+                                        }
+                                        msg._ts = Date.now();
+                                        convArr.push(msg);
+                                    }
                     });
                     // ★ 同步到通讯录（去重）
                     if (!chat.isGroup) {
@@ -623,7 +631,17 @@ else if (app === 'imessage' && typeof imData !== 'undefined') {
             for (var i = msgs.length - 1; i >= 0; i--) {
                 if (msgs[i].type === 'typing') { msgs.splice(i, 1); break; }
             }
-            e.data.replies.forEach(function(t) { msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t}); });
+                e.data.replies.forEach(function(t, i) {
+                    // ★ 第一条回复前插入时间标记
+                    if (i === 0) {
+                        var lastMsg = msgs[msgs.length - 1];
+                        if (!lastMsg || lastMsg.type === 'time' || !lastMsg._ts || (Date.now() - (lastMsg._ts||0) > 300000)) {
+                            msgs.push({type:'time', text: formatGameTime()});
+                        }
+                    }
+                    msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t, _ts:Date.now()});
+                });
+
             // 更新聊天列表最后一条
             var chat = wxData.chats.find(function(c){ return c.id === e.data.chatId; });
             if (chat) { chat.lastMsg = e.data.replies[e.data.replies.length-1] || '';chat.time = formatGameTime(); }

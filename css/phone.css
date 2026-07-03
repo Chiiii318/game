@@ -857,7 +857,7 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-tf-panel__header-avatar{width:48px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;}
 .wx-tf-panel__card{background:#fff;border-radius:12px 12px 0 0;flex:1;display:flex;flex-direction:column;padding:24px 20px;}
 .wx-tf-panel__card-label{font-size:14px;color:#000;margin-bottom:20px;}
-.wx-tf-panel__amount-row{display:flex;align-items:center;padding-bottom:12px;border-bottom:1.5px solid #07c160;}
+.wx-tf-panel__amount-row{display:flex;align-items:center;padding-bottom:12px;border-bottom:1.5px solid #e0e0e0;}
 .wx-tf-panel__currency{font-size:32px;font-weight:700;color:#000;margin-right:12px;}
 .wx-tf-panel__amount-input{border:none;outline:none;font-size:40px;font-weight:700;color:#000;flex:1;font-family:inherit;background:transparent;min-width:0;}
 .wx-tf-panel__amount-input::placeholder{color:#ddd;}

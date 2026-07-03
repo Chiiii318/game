@@ -17,6 +17,15 @@ function getAvatarColor(name) {
     return _avatarColors[idx];
 }
 
+// ★ 转账实名遮掩：李明→(*明)，宋亚轩→(**轩)
+function getNameMask(name) {
+    if (!name || name.length === 0) return '';
+    var last = name[name.length - 1];
+    var stars = '';
+    for (var i = 0; i < name.length - 1; i++) stars += '*';
+    return stars + last;
+}
+
 // [fix #1] XSS 防护工具函数
 function escapeHtml(str) {
     if (typeof str !== 'string') return str || '';
@@ -483,7 +492,7 @@ function showTransferModal() {
     panel.className = 'wx-tf-panel';
     panel.id = 'wx-tf-panel';
     panel.innerHTML = '<div class="wx-tf-panel__nav"><div class="wx-tf-panel__nav-back" onclick="closeTfPanel()">'+IC.back+'</div><div class="wx-tf-panel__nav-title">转账</div><div style="width:28px"></div></div>'
-        +'<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info"><div class="wx-tf-panel__header-name">转账给 '+escapeHtml(toName)+'</div><div class="wx-tf-panel__header-id">微信号：'+escapeHtml(wxData.currentChatId)+'</div></div><div class="wx-tf-panel__header-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div></div>'
+        +'<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info">+'<div class="wx-tf-panel__header-name">转账给 '+escapeHtml(toName)+' ('+getNameMask(toName)+')</div>'<div class="wx-tf-panel__header-id">微信号：'+escapeHtml(wxData.currentChatId)+'</div></div><div class="wx-tf-panel__header-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div></div>'
         +'<div class="wx-tf-panel__card">'
         +'<div class="wx-tf-panel__card-label">转账金额</div>'
         +'<div class="wx-tf-panel__amount-row"><span class="wx-tf-panel__currency">¥</span><input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>'
@@ -558,7 +567,13 @@ function sendMsg() {
     if (!text) return;
     var msgs = wxData.conversations[wxData.currentChatId];
     if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
+    // ★ 自动插入时间标记
+    var lastMsg = msgs[msgs.length - 1];
+    if (!lastMsg || lastMsg.type === 'time' || !lastMsg._ts || (Date.now() - (lastMsg._ts||0) > 300000)) {
+        msgs.push({type:'time', text: formatGameTime()});
+    }
     msgs.push({isSelf:true, message:text, _ts:Date.now()});
+
     input.value = '';
 
     var chat = wxData.chats.find(function(c){ return c.id === wxData.currentChatId; });
