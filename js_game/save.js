@@ -64,7 +64,8 @@ function renderSaveSlots() {
         if (autoData) {
             const parsed = JSON.parse(autoData);
             const time = new Date(parsed.timestamp).toLocaleString('zh-CN');
-            autoSlot.innerHTML = `<div class="save-slot-header"><span class="save-slot-name">🔄 自动存档</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div>`;
+            // 替换为 svg
+            autoSlot.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>自动存档</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div>`;
         } else {
             autoSlot.innerHTML = '<div class="save-slot-empty">暂无自动存档</div>';
         }
@@ -80,9 +81,11 @@ function renderSaveSlots() {
         if (data) {
             const parsed = JSON.parse(data);
             const time = new Date(parsed.timestamp).toLocaleString('zh-CN');
-            div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name">📁 槽位 ${i}</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div><div class="save-actions"><button class="btn btn-secondary" onclick="loadSave(${i})">读取</button><button class="btn btn-secondary" onclick="manualSave(${i})">覆盖</button><button class="btn btn-danger" onclick="deleteSave(${i})">删除</button></div>`;
+            // 替换为 svg
+            div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>槽位 ${i}</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div><div class="save-actions"><button class="btn btn-secondary" onclick="loadSave(${i})">读取</button><button class="btn btn-secondary" onclick="manualSave(${i})">覆盖</button><button class="btn btn-danger" onclick="deleteSave(${i})">删除</button></div>`;
         } else {
-            div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name">📁 槽位 ${i}</span><span class="save-slot-time">空</span></div><div class="save-slot-empty">空存档</div><div class="save-actions"><button class="btn btn-primary" onclick="manualSave(${i})">保存到此</button></div>`;
+            // 替换为 svg
+            div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>槽位 ${i}</span><span class="save-slot-time">空</span></div><div class="save-slot-empty">空存档</div><div class="save-actions"><button class="btn btn-primary" onclick="manualSave(${i})">保存到此</button></div>`;
         }
         container.appendChild(div);
     }
