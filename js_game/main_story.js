@@ -865,12 +865,14 @@ async function handlePhoneInteract(data) {
     // ① 玩家这条回复永久存入仓库
     conv.push({ isSelf: true, sender: '我', message: data.userMessage });
 
-    const messages = [
-        { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+const messages = [
+    { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
+【格式铁律】只输出纯文字对话，禁止任何动作描写、旁白、括号注释。禁止出现：(xxx)、（xxx）、*xxx*、【xxx】、「xxx」、双引号包裹的动作。回复必须像真人发微信一样，只有文字内容。
 最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。` },
-        { role: 'user', content: `玩家发送：${data.userMessage}` }
-    ];
+    { role: 'user', content: `玩家发送：${data.userMessage}` }
+];
+
     try {
         const raw = await callAI(messages, null, 300);
         // ② 抽出数值变动并写回全局数值仓库（数值Tab会实时刷新）
@@ -879,7 +881,14 @@ async function handlePhoneInteract(data) {
             const t = gameState.targets[affM[1]];
             t.affection = Math.max(0, Math.min(100, t.affection + parseInt(affM[2])));
         }
-        const replies = raw.replace(/###.*?###/g, '').split('\n').filter(l => l.trim());
+// ★ 正则清洗：去除AI可能生成的动作描写（括号/星号/书名号动作）
+let cleaned = raw.replace(/###.*?###/g, '');
+cleaned = cleaned.replace(/[\(（][\s\S]*?[\)）]/g, '');   // 去掉(动作)和（动作）
+cleaned = cleaned.replace(/\*[^*]+\*/g, '');              // 去掉*动作*
+cleaned = cleaned.replace(/【[^】]*】/g, '');              // 去掉【动作】
+cleaned = cleaned.replace(/「[^」]*」/g, '');              // 去掉「动作」
+const replies = cleaned.split('\n').filter(l => l.trim());
+
         // ③ NPC回复永久入库
         replies.forEach(t => conv.push({ isSelf:false, sender:data.chatName, color:'#4a90d9', message:t }));
         const c = store.wechat.chats.find(x => x.id === data.chatId);
