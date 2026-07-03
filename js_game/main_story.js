@@ -524,7 +524,21 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
             const pMatch = response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
     if (pMatch) {
         try {
-            const newPhoneData = JSON.parse(pMatch[1].trim());
+            const rawJson = pMatch[1].trim()
+                .replace(/^```json?\s*/i, '').replace(/\s*```$/, '')  // 去掉markdown代码块
+                .replace(/,\s*([}\]])/g, '$1')                        // 去掉尾部逗号
+                .replace(/'/g, '"')                                    // 单引号转双引号
+                .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');           // key没引号的补上
+            // 修复未闭合的花括号/方括号
+            let fixed = rawJson;
+            let opens = (fixed.match(/\{/g)||[]).length;
+            let closes = (fixed.match(/\}/g)||[]).length;
+            while (closes < opens) { fixed += '}'; closes++; }
+            let openB = (fixed.match(/\[/g)||[]).length;
+            let closeB = (fixed.match(/\]/g)||[]).length;
+            while (closeB < openB) { fixed += ']'; closeB++; }
+            const newPhoneData = JSON.parse(fixed);
+
             mergeIntoPhoneStore(newPhoneData);
             let newBadge = 0;
             if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v||0));

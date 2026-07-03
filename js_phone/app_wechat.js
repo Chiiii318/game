@@ -114,7 +114,7 @@ function renderChatlist() {
             av = '<div class="wx-avatar-single" style="background:'+getAvatarColor(c.name)+'">'+escapeHtml(c.avatar||c.name[0]||'?')+'</div>';
         }
         var badge = c.unread>0?'<div class="wx-badge">'+c.unread+'</div>':'';
-        var name = escapeHtml(c.name)+(c.memberCount?'('+c.memberCount+')':'');
+        var name = escapeHtml(c.name);
         var pinCls = c.pinned?' wx-chat-pinned':'';
         // [fix #7] 长按操作用 data-id
         return '<div class="wx-chat-item'+pinCls+'" data-chatid="'+sid+'" onclick="wxNav(\'conversation\',\''+sid+'\')" oncontextmenu="event.preventDefault();chatLongPress(\''+sid+'\')"><div class="wx-avatar-wrap">'+av+badge+'</div><div class="wx-chat-info"><div class="wx-chat-top-row"><span class="wx-chat-name">'+name+'</span><span class="wx-chat-time">'+(c.time?formatChatTime(c.time):'')+'</span></div><div class="wx-chat-preview">'+escapeHtml(c.lastMsg||'')+'</div></div></div>';
@@ -160,7 +160,7 @@ function renderConversation() {
         if (msg.type==='sys') return '<div class="wx-sys-msg">'+escapeHtml(msg.text)+'</div>';
         var self = msg.isSelf;
         var cls = self?'wx-msg-row self':'wx-msg-row';
-        var avColor = self ? (typeof playerColor!=='undefined'?playerColor:'#ff9eaa') : getAvatarColor(msg.sender || chat.name);
+        var avColor = self ? (typeof playerColor!=='undefined'?playerColor:'#ff9eaa') : getAvatarColor(msg.sender || '未知');
         var avText = self?(typeof playerName!=='undefined'?playerName[0]:'我'):(msg.sender?msg.sender[0]:'?');
         var clickAv = '';
         if (!self && msg.sender) {

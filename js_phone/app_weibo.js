@@ -67,14 +67,7 @@ var WB_IC = {
 
 function wbFmtNum(n){if(typeof n==='string')return n;if(n>=10000)return(n/10000).toFixed(1).replace('.0','')+'万';return String(n||0);}
 
-function wbImgs(images){
-    if(!images||images.length===0)return '';
-    var cls='grid';
-    if(images.length===1)cls='single';
-    else if(images.length===2)cls='double';
-    else if(images.length===3)cls='triple';
-    return '<div class="wb-imgs '+cls+'">'+images.map(function(img){return '<div class="wb-img-item">'+img+'</div>';}).join('')+'</div>';
-}
+function wbImgs(images){ if(!images||images.length===0)return ''; var cls='grid'; if(images.length===1)cls='single'; else if(images.length===2)cls='double'; else if(images.length===3)cls='triple'; return '<div class="wb-imgs '+cls+'">'+images.map(function(img){/* ★ 图片点击放大预览 */return '<div class="wb-img-item" data-desc="'+img.replace(/"/g,'&quot;')+'" onclick="wbImgPreview(this.dataset.desc)">'+img+'</div>';}).join('')+'</div>'; }
 
 function wbNav(view,data){
     if (!wbData._inited) { wbData._inited = true; wbInitPlayerProfile(); }
@@ -85,7 +78,7 @@ function wbNav(view,data){
     var el=document.getElementById('screen-weibo');
     if(view==='home')el.innerHTML=renderWbHome();
     else if(view==='hot')el.innerHTML=renderWbHot();
-    else if(view==='detail'){wbData._detailFrom=wbData._prevView||'home';wbData.currentPostIdx=data;el.innerHTML=renderWbDetail();}
+    else if(view==='detail'){wbData._detailFrom=wbData._prevView||'home';wbData.currentPostIdx=data;wbData._cmtShowCount=5;/* ★ 重置评论分页 */el.innerHTML=renderWbDetail();}
     else if(view==='search')el.innerHTML=renderWbSearch();
     else if(view==='messages')el.innerHTML=renderWbMessages();
     else if(view==='dmlist')el.innerHTML=renderWbDmList();
@@ -128,9 +121,7 @@ function renderWbDetail(){
     var backTo = wbData._detailFrom || 'home';
     var p=wbData.feed[wbData.currentPostIdx];
     if(!p) return '';
-    var cmts=(p.comments||[]).map(function(c){
-        return '<div class="wb-comment-item"><div class="wb-comment-avatar">'+WB_IC.avatar+'</div><div class="wb-comment-body"><div class="wb-comment-name">'+(c.name||c.author)+'</div><div class="wb-comment-text">'+(c.text||c.content)+'</div><div class="wb-comment-meta"><span>'+(c.time||'刚刚')+'</span></div></div><div class="wb-comment-like">'+WB_IC.likeSm+'<span>'+(c.likes||0)+'</span></div></div>';
-    }).join('');
+/* ★ 评论区分页加载 */var allCmts=p.comments||[];var showCount=wbData._cmtShowCount||5;var visibleCmts=allCmts.slice(0,showCount);var cmts=visibleCmts.map(function(c){ return '<div class="wb-comment-item">'+WB_IC.avatar+'<div class="wb-comment-body"><div class="wb-comment-name">'+(c.name||c.author)+'</div><div class="wb-comment-text">'+(c.text||c.content)+'</div><div class="wb-comment-meta"><span>'+(c.time||'刚刚')+'</span></div></div><div class="wb-comment-like">'+WB_IC.likeSm+'<span>'+(c.likes||0)+'</span></div></div>'; }).join('');if(allCmts.length>showCount){cmts+='<div onclick="wbLoadMoreComments()" style="text-align:center;padding:14px 0;font-size:13px;color:#ff6b2b;cursor:pointer;">展开更多评论 (剩余'+(allCmts.length-showCount)+'条)</div>';}
     return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\''+backTo+'\')">'+IC.back+'</div><div class="wb-detail-title">正文</div></div><div class="wb-body"><div class="wb-post" style="margin:0;"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ff6b2b')+';color:#fff;font-size:14px;" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.avatar||p.name[0]||'网')+'</div><div class="wb-post-info"><div class="wb-post-name" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.name||p.author)+(p.verified?' <span class="wb-post-vip"><svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M3 5l2 2 3-3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>':'')+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content">'+(p.text||p.content||'').replace(/\n/g,'<br>')+'</div>'+wbImgs(p.imgs||[])+'<div class="wb-post-actions"><button class="wb-action-btn">'+WB_IC.repost+' '+wbFmtNum(p.reposts||p.shares||0)+'</button><button class="wb-action-btn">'+WB_IC.comment+' '+((p.comments||[]).length||0)+'</button><button class="wb-action-btn'+(p.liked?' liked':'')+'" onclick="wbLike('+wbData.currentPostIdx+',this)">'+(p.liked?WB_IC.likeFilled:WB_IC.like)+' <span>'+wbFmtNum(p.likes||0)+'</span></button></div></div><div class="wb-comments-section"><div class="wb-comments-tabs"><span class="wb-comments-tab active">热门</span><span class="wb-comments-tab">最新</span></div>'+(cmts||'<div style="text-align:center;padding:20px;color:#999;font-size:12px;">暂无评论</div>')+'</div></div><div class="wb-comment-input"><input id="wb-cmt-input" placeholder="写评论..." onkeydown="if(event.key===\'Enter\')wbComment()"><button class="wb-comment-send" onclick="wbComment()">发送</button></div></div>';
 }
 
@@ -370,3 +361,64 @@ function renderWbTabbar(active){
         return '<div class="wb-tab-item'+cls+'" onclick="'+oc+'"><div class="wb-tab-icon">'+t.icon+'</div><span>'+t.label+'</span></div>';
     }).join('')+'</div>';
 }
+
+// ═══════════════ ★ 图片放大预览 ═══════════════
+function wbImgPreview(desc) {
+    var container = document.querySelector('.weibo-container');
+    if (!container) return;
+    var overlay = document.createElement('div');
+    overlay.className = 'wb-img-overlay show';
+    overlay.onclick = function(){ overlay.remove(); };
+    overlay.innerHTML = '<div class="wb-img-overlay-text" style="font-size:16px;opacity:1;">' + (desc||'图片预览') + '</div>';
+    container.appendChild(overlay);
+}
+
+// ═══════════════ ★ 评论区加载更多 ═══════════════
+function wbLoadMoreComments() {
+    wbData._cmtShowCount = (wbData._cmtShowCount || 5) + 10;
+    var el = document.getElementById('screen-weibo');
+    el.innerHTML = renderWbDetail();
+}
+
+// ═══════════════ ★ 热搜联动剧情事件 ═══════════════
+// 外部调用：传入事件对象 {title, tag?, rank?, count?}
+// rank 为插入位置（1-based），默认置顶
+function wbInjectHotEvent(event) {
+    if (!event || !event.title) return;
+    var rank = (event.rank || 1) - 1;
+    // 去重：相同title只更新
+    var exist = wbData.hotSearch.findIndex(function(h){ return (h.text||h.title) === event.title; });
+    if (exist !== -1) wbData.hotSearch.splice(exist, 1);
+    var item = { text: event.title, tag: event.tag || '新', count: event.count || '' };
+    wbData.hotSearch.splice(rank, 0, item);
+    // 保持最多50条
+    if (wbData.hotSearch.length > 50) wbData.hotSearch.length = 50;
+    // 如果当前在热搜页，自动刷新
+    if (wbData.currentView === 'hot') wbNav('hot');
+}
+
+// 舆论值变化时批量更新热搜（opinionVal: 0~100，events: 事件数组）
+function wbOnPublicOpinionChange(opinionVal, events) {
+    if (!events || !Array.isArray(events)) return;
+    events.forEach(function(ev) {
+        // 根据舆论值决定热搜标签
+        var tag = '新';
+        if (opinionVal >= 80) tag = '爆';
+        else if (opinionVal >= 60) tag = '热';
+        else if (opinionVal >= 40) tag = '沸';
+        wbInjectHotEvent({ title: ev.title, tag: tag, rank: ev.rank, count: ev.count });
+    });
+}
+
+// ★ 监听父页面消息 —— 自动接收热搜/舆论事件
+window.addEventListener('message', function(e) {
+    if (!e.data) return;
+    // 热搜注入：{type:'WEIBO_HOT_EVENT', event:{title,tag,rank,count}}
+    if (e.data.type === 'WEIBO_HOT_EVENT') {
+        wbInjectHotEvent(e.data.event);
+    }
+    // 舆论值变化：{type:'PUBLIC_OPINION_CHANGE', value:Number, events:[...]}
+    if (e.data.type === 'PUBLIC_OPINION_CHANGE') {
+        wbOnPublicOpinionChange(e.data.value, e.data.events);
+    }
+});
