@@ -943,11 +943,12 @@ function switchTab(tab) {
     const topbar = document.querySelector('.game-topbar');
     if (topbar) topbar.style.display = tab === 'story' ? '' : 'none';
 
-    if (tab === 'phone') {
+        if (tab === 'phone') {
         const iframe = document.getElementById('phone-iframe');
         if (iframe) {
             if (!iframe.src || !iframe.src.includes('phone.html')) {
-                iframe.src = './phone.html?t=' + new Date().getTime();
+                // 修复路径问题，去掉 ./ 确保在 GitHub Pages 上能正确加载
+                iframe.src = 'phone.html?t=' + new Date().getTime();
             }
             gameState.phoneBadge = 0;
             updatePhoneBadge();
