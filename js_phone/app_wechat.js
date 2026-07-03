@@ -394,12 +394,24 @@ function showRedpacketModal() {
     panel.className = 'wx-rp-panel';
     panel.id = 'wx-rp-panel';
     panel.innerHTML = '<div class="wx-rp-panel__nav"><div class="wx-rp-panel__nav-back" onclick="closeRpPanel()">'+IC.back+'</div><div class="wx-rp-panel__nav-title">发红包</div><div style="width:28px"></div></div>'
-        +'<div class="wx-rp-panel__body"><div class="wx-rp-panel__to">发给 '+escapeHtml(toName)+'</div>'
-        +'<div class="wx-rp-panel__amount-wrap"><span class="wx-rp-panel__currency">¥</span><input class="wx-rp-panel__amount-input" id="rp-amount" type="number" placeholder="0.00"></div>'
-        +'<input class="wx-rp-panel__msg-input" id="rp-text" placeholder="恭喜发财，大吉大利">'
-        +'<div class="wx-rp-panel__btn" onclick="submitRedpacket()">塞钱进红包</div></div>';
+        +'<div class="wx-rp-panel__body">'
+        +'<div class="wx-rp-panel__row"><span class="wx-rp-panel__row-label">金额</span><input class="wx-rp-panel__row-input" id="rp-amount" type="number" placeholder="¥0.00" oninput="updateRpDisplay()"></div>'
+        +'<div class="wx-rp-panel__row"><input class="wx-rp-panel__row-input" id="rp-text" placeholder="恭喜发财，大吉大利" style="text-align:left"></div>'
+        +'<div class="wx-rp-panel__amount-display" id="rp-display"><span>¥</span>0.00</div>'
+        +'<div class="wx-rp-panel__btn" onclick="submitRedpacket()">塞钱进红包</div>'
+        +'<div class="wx-rp-panel__tip">可直接使用收到的零钱发红包</div>'
+        +'</div>';
     el.appendChild(panel);
 }
+function updateRpDisplay() {
+    var v = document.getElementById('rp-amount');
+    var d = document.getElementById('rp-display');
+    if (v && d) {
+        var val = v.value ? Number(v.value).toFixed(2) : '0.00';
+        d.innerHTML = '<span>¥</span>' + val;
+    }
+}
+
 function closeRpPanel() {
     var p = document.getElementById('wx-rp-panel');
     if (p) p.remove();
@@ -471,13 +483,16 @@ function showTransferModal() {
     panel.className = 'wx-tf-panel';
     panel.id = 'wx-tf-panel';
     panel.innerHTML = '<div class="wx-tf-panel__nav"><div class="wx-tf-panel__nav-back" onclick="closeTfPanel()">'+IC.back+'</div><div class="wx-tf-panel__nav-title">转账</div><div style="width:28px"></div></div>'
-        +'<div class="wx-tf-panel__body">'
-        +'<div class="wx-tf-panel__to"><div class="wx-tf-panel__to-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div><span class="wx-tf-panel__to-name">转账给 '+escapeHtml(toName)+'</span></div>'
-        +'<div class="wx-tf-panel__amount-wrap"><span class="wx-tf-panel__currency">¥</span><input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>'
+        +'<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info"><div class="wx-tf-panel__header-name">转账给 '+escapeHtml(toName)+'</div><div class="wx-tf-panel__header-id">微信号：'+escapeHtml(wxData.currentChatId)+'</div></div><div class="wx-tf-panel__header-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div></div>'
+        +'<div class="wx-tf-panel__card">'
+        +'<div class="wx-tf-panel__card-label">转账金额</div>'
+        +'<div class="wx-tf-panel__amount-row"><span class="wx-tf-panel__currency">¥</span><input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>'
         +'<input class="wx-tf-panel__note-input" id="tf-note" placeholder="添加转账说明">'
-        +'<button class="wx-tf-panel__btn" onclick="submitTransfer()">转账</button></div>';
+        +'<button class="wx-tf-panel__btn" onclick="submitTransfer()">转账</button>'
+        +'</div>';
     el.appendChild(panel);
 }
+
 function closeTfPanel() {
     var p = document.getElementById('wx-tf-panel');
     if (p) p.remove();
