@@ -277,7 +277,7 @@ async function startGame() {
     targets: {}, customModules: "",
     phoneStore: {                       // ★ 全局手机仓库
         wechat: { chats: [], conversations: {}, moments: [] },
-        weibo: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: []
+        weibo: [],weibo_hotsearch: [],douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: []
     },
     currentTab: 'story',                // ★ 当前底部Tab（默认剧情）
     lastPhoneApp: 'wechat'             // ★ 手机内最后停留的App（Tab记忆）
@@ -593,8 +593,16 @@ function mergeIntoPhoneStore(pd) {
         const last = (chat.messages||[]).slice(-1)[0];
         if (last) { c.lastMsg = last.message; c.time = '刚刚'; }
     });
+    // 微信朋友圈：累加到 moments 数组
+    (ad.wechat_moments || []).forEach(m => {
+        if (!store.wechat.moments) store.wechat.moments = [];
+        const isDup = store.wechat.moments.some(x => x.text === m.text && x.name === m.name);
+        if (!isDup) store.wechat.moments.unshift(m);
+    });
+
     // 其他平台：直接累加进仓库数组
     ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+
         (ad[app] || []).forEach(item => {
             // ★ 通用去重：按内容+作者判断
             const content = item.content || item.text || item.desc || item.title || '';

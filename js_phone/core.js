@@ -243,9 +243,25 @@ function requestAppData(appId) {
     if (appId === 'douban' && typeof dbData !== 'undefined' && dbData.posts && (dbData.posts.art.length > 0 || dbData.posts.observe.length > 0)) { appCache[appId] = 'loaded'; return; }
     if (appId === 'tfamily' && typeof tfData !== 'undefined' && tfData.feed && tfData.feed.length > 0) { appCache[appId] = 'loaded'; return; }
     // 本地没数据，去请求 AI 生成（花 token）
-    if (appCache[appId] === 'loading') return;
-    appCache[appId] = 'loading';
-    window.parent.postMessage({ type: 'PHONE_INTERACT', action: 'load_app', app: appId }, '*');
+if (appCache[appId] === 'loading') return;
+appCache[appId] = 'loading';
+window.parent.postMessage({ type: 'PHONE_INTERACT', action: 'load_app', app: appId }, '*');
+
+// 15秒超时兜底：如果AI未返回数据，解除loading状态并提示
+setTimeout(function(){
+    if (appCache[appId] === 'loading') {
+        appCache[appId] = null; // 重置，允许用户下拉重试
+        refreshCurrentView();
+    }
+}, 15000);
+
+// 15秒超时兜底：如果AI未返回数据，解除loading状态并刷新视图
+setTimeout(function(){
+    if (appCache[appId] === 'loading') {
+        appCache[appId] = null; // 重置，允许用户再次触发请求
+        refreshCurrentView();
+    }
+}, 15000);
 }
 
 window.addEventListener('message', function(e) {
@@ -280,7 +296,10 @@ window.addEventListener('message', function(e) {
             }
         });
     }
-    if (typeof wbData !== 'undefined')  wbData.feed  = s.weibo   || [];
+    if (typeof wbData !== 'undefined') {
+    wbData.feed = s.weibo || [];
+    if (s.weibo_hotsearch) wbData.hotSearch = s.weibo_hotsearch;
+}
     if (typeof dyData !== 'undefined')  dyData.videos = s.douyin || [];
     if (typeof xhsData !== 'undefined') xhsData.notes = s.redbook|| [];
     if (typeof biliData !== 'undefined')biliData.videos = s.bilibili || [];
@@ -680,13 +699,12 @@ function goBack() {
         if(Math.abs(dy) < 60) return;
         // 上滑 = 下一个视频，下滑 = 上一个视频
         if(typeof dyData !== 'undefined' && typeof dyNav === 'function') {
-            if(dy > 60) {
-                // 下一个
-                dyData.currentIndex = ((dyData.currentIndex || 0) + 1) % Math.max(1, (dyData.videos||[]).length);
-            } else {
-                // 上一个
-                dyData.currentIndex = ((dyData.currentIndex || 0) - 1 + (dyData.videos||[]).length) % Math.max(1, (dyData.videos||[]).length);
-            }
+           if(dy > 60) { // 下一个
+    dyData.currentVideoIdx = ((dyData.currentVideoIdx || 0) + 1) % Math.max(1, (dyData.videos||[]).length);
+} else { // 上一个
+    dyData.currentVideoIdx = ((dyData.currentVideoIdx || 0) - 1 + (dyData.videos||[]).length) % Math.max(1, (dyData.videos||[]).length);
+}
+
             dyNav('feed');
         }
     }, {passive:true});
