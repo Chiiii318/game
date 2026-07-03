@@ -484,23 +484,6 @@ function closeRpOpen() {
 
 // [fix #18] 转账弹窗用 weui.dialog
 function showTransferModal() {
-    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
-    var toName = chat ? chat.name : '对方';
-    var toColor = chat ? getAvatarColor(chat.name) : '#4a90d9';
-    var el = document.getElementById('screen-wechat');
-    var panel = document.createElement('div');
-    panel.className = 'wx-tf-panel';
-    panel.id = 'wx-tf-panel';
-    panel.innerHTML = '<div class="wx-tf-panel__nav"><div class="wx-tf-panel__nav-back" onclick="closeTfPanel()">'+IC.back+'</div><div class="wx-tf-panel__nav-title">转账</div><div style="width:28px"></div></div>'
-        +'<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info">+'<div class="wx-tf-panel__header-name">转账给 '+escapeHtml(toName)+' ('+getNameMask(toName)+')</div>'<div class="wx-tf-panel__header-id">微信号：'+escapeHtml(wxData.currentChatId)+'</div></div><div class="wx-tf-panel__header-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div></div>'
-        +'<div class="wx-tf-panel__card">'
-        +'<div class="wx-tf-panel__card-label">转账金额</div>'
-        +'<div class="wx-tf-panel__amount-row"><span class="wx-tf-panel__currency">¥</span><input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>'
-        +'<input class="wx-tf-panel__note-input" id="tf-note" placeholder="添加转账说明">'
-        +'<button class="wx-tf-panel__btn" onclick="submitTransfer()">转账</button>'
-        +'</div>';
-    el.appendChild(panel);
-}
 
 function closeTfPanel() {
     var p = document.getElementById('wx-tf-panel');
