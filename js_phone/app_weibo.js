@@ -65,7 +65,23 @@ var WB_IC = {
     search:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5" stroke="#666" stroke-width="1.5"/><line x1="11.5" y1="11.5" x2="16" y2="16" stroke="#666" stroke-width="1.5" stroke-linecap="round"/></svg>'
 };
 
+// ★ HTML转义：防止AI生成的内容包含<>等字符破坏DOM结构
+function wbEsc(str){
+    if(!str)return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// ★ 对微博正文做转义后再高亮话题标签
+function wbSafeContent(text){
+    if(!text)return '';
+    var s = wbEsc(text);
+    // 高亮 #话题# 格式
+    s = s.replace(/#([^#]+)#/g,'<span class="wb-topic">#$1#</span>');
+    // 换行
+    s = s.replace(/\n/g,'<br>');
+    return s;
+}
 function wbFmtNum(n){if(typeof n==='string')return n;if(n>=10000)return(n/10000).toFixed(1).replace('.0','')+'万';return String(n||0);}
+
 
 function wbImgs(images){ if(!images||images.length===0)return ''; var cls='grid'; if(images.length===1)cls='single'; else if(images.length===2)cls='double'; else if(images.length===3)cls='triple'; return '<div class="wb-imgs '+cls+'">'+images.map(function(img){/* ★ 图片点击放大预览 */return '<div class="wb-img-item" data-desc="'+img.replace(/"/g,'&quot;')+'" onclick="wbImgPreview(this.dataset.desc)">'+img+'</div>';}).join('')+'</div>'; }
 
@@ -99,7 +115,7 @@ var feedHTML=wbData.feed.map(function(p,i){
     // ★ 修复：防止 p.name 为 undefined 时取 [0] 崩溃；comments 可能是数字非数组
     var displayName = p.name||p.author||'网友';
     var cmtCount = Array.isArray(p.comments) ? p.comments.length : (p.commentCount||p.comments||0);
-    return ''+ ''+(p.avatar||displayName[0]||'网')+''+displayName+(p.verified?' ':'')+''+(p.time||'刚刚')+''+ ''+(p.text||p.content||'').replace(/\n/g,'')+''+wbImgs(p.imgs||[])+ ''+WB_IC.repost+' '+wbFmtNum(p.reposts||p.shares||0)+''+WB_IC.comment+' '+cmtCount+''+(p.liked?WB_IC.likeFilled:WB_IC.like)+' '+wbFmtNum(p.likes||0)+''+ '';
+    return ''+ ''+(p.avatar||displayName[0]||'网')+''+displayName+(p.verified?' ':'')+''+(p.time||'刚刚')+''+ ''+wbSafeContent(p.text||p.content||'')+''+wbImgs(p.imgs||[])+ ''+WB_IC.repost+' '+wbFmtNum(p.reposts||p.shares||0)+''+WB_IC.comment+' '+cmtCount+''+(p.liked?WB_IC.likeFilled:WB_IC.like)+' '+wbFmtNum(p.likes||0)+''+ '';
 }).join('');
 
     return '<div class="weibo-container"><div class="wb-navbar"><div class="wb-navbar-left"><div class="wb-navbar-btn" onclick="goDesktop()">'+IC.back+'</div></div><div class="wb-navbar-tabs"><span class="wb-nav-tab active">关注</span><span class="wb-nav-tab" onclick="wbNav(\'hot\')">热搜</span><span class="wb-nav-tab">推荐</span></div><div class="wb-navbar-right"><div class="wb-navbar-btn" onclick="wbNav(\'search\')">'+WB_IC.search+'</div></div></div><div class="wb-body wb-feed">'+feedHTML+'</div>'+renderWbTabbar('home')+'</div>';
@@ -121,7 +137,7 @@ function renderWbDetail(){
 var p=wbData.feed[wbData.currentPostIdx]; if(!p) return '';
 /* ★ 评论区分页加载 - 修复 comments 可能是数字的情况 */var allCmts=Array.isArray(p.comments)?p.comments:[];
 var showCount=wbData._cmtShowCount||5;var visibleCmts=allCmts.slice(0,showCount);var cmts=visibleCmts.map(function(c){ return '<div class="wb-comment-item">'+WB_IC.avatar+'<div class="wb-comment-body"><div class="wb-comment-name">'+(c.name||c.author)+'</div><div class="wb-comment-text">'+(c.text||c.content)+'</div><div class="wb-comment-meta"><span>'+(c.time||'刚刚')+'</span></div></div><div class="wb-comment-like">'+WB_IC.likeSm+'<span>'+(c.likes||0)+'</span></div></div>'; }).join('');if(allCmts.length>showCount){cmts+='<div onclick="wbLoadMoreComments()" style="text-align:center;padding:14px 0;font-size:13px;color:#ff6b2b;cursor:pointer;">展开更多评论 (剩余'+(allCmts.length-showCount)+'条)</div>';}
-    return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\''+backTo+'\')">'+IC.back+'</div><div class="wb-detail-title">正文</div></div><div class="wb-body"><div class="wb-post" style="margin:0;"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ff6b2b')+';color:#fff;font-size:14px;" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.avatar||p.name[0]||'网')+'</div><div class="wb-post-info"><div class="wb-post-name" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.name||p.author)+(p.verified?' <span class="wb-post-vip"><svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M3 5l2 2 3-3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>':'')+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content">'+(p.text||p.content||'').replace(/\n/g,'<br>')+'</div>'+wbImgs(p.imgs||[])+'<div class="wb-post-actions"><button class="wb-action-btn">'+WB_IC.repost+' '+wbFmtNum(p.reposts||p.shares||0)+'</button><button class="wb-action-btn">'+WB_IC.comment+' '+((p.comments||[]).length||0)+'</button><button class="wb-action-btn'+(p.liked?' liked':'')+'" onclick="wbLike('+wbData.currentPostIdx+',this)">'+(p.liked?WB_IC.likeFilled:WB_IC.like)+' <span>'+wbFmtNum(p.likes||0)+'</span></button></div></div><div class="wb-comments-section"><div class="wb-comments-tabs"><span class="wb-comments-tab active">热门</span><span class="wb-comments-tab">最新</span></div>'+(cmts||'<div style="text-align:center;padding:20px;color:#999;font-size:12px;">暂无评论</div>')+'</div></div><div class="wb-comment-input"><input id="wb-cmt-input" placeholder="写评论..." onkeydown="if(event.key===\'Enter\')wbComment()"><button class="wb-comment-send" onclick="wbComment()">发送</button></div></div>';
+    return '<div class="weibo-container"><div class="wb-detail-nav"><div class="wb-detail-back" onclick="wbNav(\''+backTo+'\')">'+IC.back+'</div><div class="wb-detail-title">正文</div></div><div class="wb-body"><div class="wb-post" style="margin:0;"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ff6b2b')+';color:#fff;font-size:14px;" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.avatar||p.name[0]||'网')+'</div><div class="wb-post-info"><div class="wb-post-name" onclick="wbNav(\'profile\','+wbData.currentPostIdx+')">'+(p.name||p.author)+(p.verified?' <span class="wb-post-vip"><svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M3 5l2 2 3-3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>':'')+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content">''+wbSafeContent(p.text||p.content||'')+''+wbImgs(p.imgs||[])+'<div class="wb-post-actions"><button class="wb-action-btn">'+WB_IC.repost+' '+wbFmtNum(p.reposts||p.shares||0)+'</button><button class="wb-action-btn">'+WB_IC.comment+' '+((p.comments||[]).length||0)+'</button><button class="wb-action-btn'+(p.liked?' liked':'')+'" onclick="wbLike('+wbData.currentPostIdx+',this)">'+(p.liked?WB_IC.likeFilled:WB_IC.like)+' <span>'+wbFmtNum(p.likes||0)+'</span></button></div></div><div class="wb-comments-section"><div class="wb-comments-tabs"><span class="wb-comments-tab active">热门</span><span class="wb-comments-tab">最新</span></div>'+(cmts||'<div style="text-align:center;padding:20px;color:#999;font-size:12px;">暂无评论</div>')+'</div></div><div class="wb-comment-input"><input id="wb-cmt-input" placeholder="写评论..." onkeydown="if(event.key===\'Enter\')wbComment()"><button class="wb-comment-send" onclick="wbComment()">发送</button></div></div>';
 }
 
 function renderWbSearch(){
@@ -160,7 +176,7 @@ function renderWbSearchResult(){
         postHTML = '<div style="font-size:13px;color:#999;padding:12px 16px 6px;">相关微博</div>' +
             r.posts.map(function(p,i){
                 var idx = wbData.feed.indexOf(p);
-                return '<div class="wb-post" onclick="wbNav(\'detail\','+idx+')" style="margin:0;border-bottom:0.5px solid #f5f5f5;"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ccc')+';color:#fff;font-size:14px;">'+(p.avatar||p.name[0]||'网')+'</div><div class="wb-post-info"><div class="wb-post-name">'+(p.name||p.author)+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'+(p.text||p.content||'').replace(/<[^>]+>/g,'')+'</div></div>';
+                return '<div class="wb-post" onclick="wbNav(\'detail\','+idx+')" style="margin:0;border-bottom:0.5px solid #f5f5f5;"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ccc')+';color:#fff;font-size:14px;">'+(p.avatar||p.name[0]||'网')+'</div><div class="wb-post-info"><div class="wb-post-name">'+(p.name||p.author)+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">''+wbEsc((p.text||p.content||'').substring(0,80))+'';</div></div>';
             }).join('');
     }
     var emptyTip = (r.accounts.length===0 && r.posts.length===0) ? '<div style="text-align:center;padding:40px 0;color:#999;font-size:14px;">未找到"'+r.query+'"相关结果</div>' : '';
@@ -174,7 +190,7 @@ function renderWbAccount(accId){
     var accPosts = (wbData.feed||[]).filter(function(p){return (p.name||p.author)===acc.name;});
     var postsHTML = accPosts.length > 0 ? accPosts.map(function(p){
         var idx = wbData.feed.indexOf(p);
-        return '<div class="wb-post" onclick="wbNav(\'detail\','+idx+')"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ccc')+';color:#fff;font-size:14px;">'+(p.avatar||p.name[0])+'</div><div class="wb-post-info"><div class="wb-post-name">'+(p.name||p.author)+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content">'+(p.text||p.content||'').replace(/\n/g,'<br>')+'</div>'+wbImgs(p.imgs||[])+'<div class="wb-post-actions"><button class="wb-action-btn">'+WB_IC.repost+' '+wbFmtNum(p.reposts||0)+'</button><button class="wb-action-btn">'+WB_IC.comment+' '+((p.comments||[]).length||0)+'</button><button class="wb-action-btn'+(p.liked?' liked':'')+'">'+( p.liked?WB_IC.likeFilled:WB_IC.like)+' '+wbFmtNum(p.likes||0)+'</button></div></div>';
+        return '<div class="wb-post" onclick="wbNav(\'detail\','+idx+')"><div class="wb-post-header"><div class="wb-post-avatar" style="background:'+(p.color||'#ccc')+';color:#fff;font-size:14px;">'+(p.avatar||p.name[0])+'</div><div class="wb-post-info"><div class="wb-post-name">'+(p.name||p.author)+'</div><div class="wb-post-meta">'+(p.time||'刚刚')+'</div></div></div><div class="wb-post-content">''+wbSafeContent(p.text||p.content||'')+''+wbImgs(p.imgs||[])+'<div class="wb-post-actions"><button class="wb-action-btn">'+WB_IC.repost+' '+wbFmtNum(p.reposts||0)+'</button><button class="wb-action-btn">'+WB_IC.comment+' '+((p.comments||[]).length||0)+'</button><button class="wb-action-btn'+(p.liked?' liked':'')+'">'+( p.liked?WB_IC.likeFilled:WB_IC.like)+' '+wbFmtNum(p.likes||0)+'</button></div></div>';
     }).join('') : '<div style="text-align:center;padding:40px 0;color:#bbb;font-size:13px;">暂无微博</div>';
 
     var vBadge = acc.verified ? ' <span class="wb-post-vip"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 5l2 2 3-3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' : '';
