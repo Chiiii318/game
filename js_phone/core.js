@@ -348,9 +348,26 @@ if (e.data.type === 'PHONE_RESTORE') {
                     items.forEach(function(chat) {
                         if (chat.chatId && chat.messages) {
                             var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
-                            if (!existing) {
-                                wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
-                            } else {
+                                                if (!existing) {
+                        // ★ 群聊动态创建：保留 isGroup/members/colors/memberCount 字段
+                        var newChat = {
+                            id: chat.chatId,
+                            name: chat.chatName || chat.chatId,
+                            avatar: (chat.chatName||chat.chatId)[0],
+                            color: chat.color || '#4a90d9',
+                            lastMsg: chat.messages[chat.messages.length-1].message || '',
+                            time: '刚刚',
+                            sortKey: Date.now()
+                        };
+                        if (chat.isGroup) {
+                            newChat.isGroup = true;
+                            newChat.members = chat.members || [];
+                            newChat.colors = chat.colors || [];
+                            newChat.memberCount = chat.memberCount || (chat.members||[]).length;
+                        }
+                        wxData.chats.push(newChat);
+                    }
+else {
                                 existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
                                 existing.time = '刚刚';
                             }
@@ -399,7 +416,22 @@ if (e.data.type === 'PHONE_RESTORE') {
                 else if (appId === 'bilibili' && typeof biliData !== 'undefined') { items.forEach(function(v) { var isDup = biliData.videos.some(function(existing) { return existing.title === v.title && (existing.up || existing.author) === (v.up || v.author); }); if (!isDup) biliData.videos.unshift(v); }); }
                 else if (appId === 'douban' && typeof dbData !== 'undefined') { items.forEach(function(p) { var g = p.groupId||'art'; if(!dbData.posts[g]) dbData.posts[g]=[]; var isDup = dbData.posts[g].some(function(existing) { return existing.title === p.title && (existing.author || existing.name) === (p.author || p.name); }); if (!isDup) dbData.posts[g].unshift(p); }); }
                 else if (appId === 'tfamily' && typeof tfData !== 'undefined') { if(!tfData.feed) tfData.feed=[]; items.forEach(function(p) { var isDup = tfData.feed.some(function(existing) { return (existing.text || existing.content) === (p.text || p.content) && (existing.name || existing.author) === (p.name || p.author); }); if (!isDup) tfData.feed.unshift(p); }); }
-                else if (appId === 'imessage' && typeof imData !== 'undefined') { mergeImChats(items); }
+                                } else if (appId === 'imessage' && typeof imData !== 'undefined') {
+                    mergeImChats(items);
+                } else if (appId === 'wechat_moments' && typeof wxData !== 'undefined') {
+                    // ★ 朋友圈NPC自动发动态：接收并去重插入
+                    items.forEach(function(m) {
+                        var isDup = wxData.moments.some(function(existing) {
+                            return existing.text === m.text && existing.name === m.name;
+                        });
+                        if (!isDup) {
+                            m.likes = m.likes || [];
+                            m.comments = m.comments || [];
+                            wxData.moments.unshift(m);
+                        }
+                    });
+                    appCache['wechat_moments'] = 'loaded';
+                }
             });
 
             // ★ 处理玩家微博账号列表（weibo_accounts 不是数组里的普通 appId，单独处理）
@@ -446,9 +478,26 @@ if (e.data.type === 'PHONE_RESTORE') {
             items.forEach(function(chat) {
                 if (chat.chatId && chat.messages) {
                     var existing = wxData.chats.find(function(c) { return c.id === chat.chatId; });
-                    if (!existing) {
-                        wxData.chats.push({ id: chat.chatId, name: chat.chatName || chat.chatId, lastMsg: chat.messages[chat.messages.length-1].message || '', time: '刚刚' });
-                    } else {
+                                        if (!existing) {
+                        // ★ 群聊动态创建：保留 isGroup/members/colors/memberCount 字段
+                        var newChat = {
+                            id: chat.chatId,
+                            name: chat.chatName || chat.chatId,
+                            avatar: (chat.chatName||chat.chatId)[0],
+                            color: chat.color || '#4a90d9',
+                            lastMsg: chat.messages[chat.messages.length-1].message || '',
+                            time: '刚刚',
+                            sortKey: Date.now()
+                        };
+                        if (chat.isGroup) {
+                            newChat.isGroup = true;
+                            newChat.members = chat.members || [];
+                            newChat.colors = chat.colors || [];
+                            newChat.memberCount = chat.memberCount || (chat.members||[]).length;
+                        }
+                        wxData.chats.push(newChat);
+                    }
+                        else {
                         existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
                         existing.time = '刚刚';
                     }

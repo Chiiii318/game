@@ -143,12 +143,17 @@ function renderConversation() {
         }
         var nameH = (isGroup&&!self&&msg.sender)?'<div class="wx-msg-sender-name">'+escapeHtml(msg.sender)+'</div>':'';
         var content = '';
-        if (msg.type==='voice') {
-            var duration = msg.duration||2;
-            var w = 80 + duration*12;
-            content = '<div class="wx-voice-bubble" style="width:'+w+'px" onclick="toggleTranscript('+idx+')"><div class="wx-voice-icon">'+(self?IC.voiceRight:IC.voiceLeft)+'</div><span class="wx-voice-duration">'+duration+'"</span></div>';
-            if (msg.transcript) content += '<div class="wx-voice-transcript" id="vt-'+idx+'">'+escapeHtml(msg.transcript)+'</div>';
-        } else if (msg.type==='redpacket') {
+            if (msg.type==='voice') {
+        var duration = msg.duration||2;
+        var w = 80 + duration*12;
+        // ★ 语音消息体验优化：增加转文字提示，点击展开/收起带动画
+        content = '<div class="wx-voice-bubble" style="width:'+w+'px" onclick="toggleTranscript('+idx+')">'+(self?IC.voiceRight:IC.voiceLeft)+'<span class="wx-voice-duration">'+duration+'"</span></div>';
+        if (msg.transcript) {
+            content += '<div class="wx-voice-hint" onclick="toggleTranscript('+idx+')">转文字</div>';
+            content += '<div class="wx-voice-transcript" id="vt-'+idx+'">'+escapeHtml(msg.transcript)+'</div>';
+        }
+    }
+         else if (msg.type==='redpacket') {
             content = '<div class="wx-redpacket" onclick="openRedpacket('+idx+')"><div class="wx-redpacket-top"><div class="wx-redpacket-icon">'+IC.redpacket+'</div><div class="wx-redpacket-text">'+escapeHtml(msg.text||'恭喜发财')+'</div></div><div class="wx-redpacket-bottom">微信红包</div></div>';
         } else if (msg.type==='transfer') {
             var st = msg.status||'pending';
@@ -156,9 +161,17 @@ function renderConversation() {
             var topCls = st==='pending'?'pending':'done';
             var click = st==='pending'?' onclick="showTransferAction('+idx+')"':'';
             content = '<div class="wx-transfer '+topCls+'"'+click+'><div class="wx-transfer-top '+topCls+'"><div class="wx-transfer-info"><div class="wx-transfer-amount">¥'+escapeHtml(msg.amount)+'</div><div class="wx-transfer-label">'+stText+'</div></div></div><div class="wx-transfer-bottom">'+escapeHtml(msg.note||'转账')+'</div></div>';
-                } else if (msg.type === 'typing') {
-            return ''; // typing 不作为气泡渲染，改在导航栏标题下方提示
-        } else {
+            } else if (msg.type === 'image') {
+        // ★ 新增：图片消息气泡
+        var imgW = msg.width || 140;
+        var imgH = msg.height || 140;
+        var imgColor = msg.color || '#e0e8f0';
+        var imgLabel = escapeHtml(msg.label || '图片');
+        content = '<div class="wx-img-bubble" onclick="previewChatImage('+idx+')"><div class="wx-img-placeholder" style="background:'+imgColor+';width:'+imgW+'px;height:'+imgH+'px;">'+imgLabel+'</div></div>';
+    } else if (msg.type === 'typing') {
+        return ''; // typing 不作为气泡渲染，改在导航栏标题下方提示
+    } else {
+
             // [fix #8] 长按消息弹出菜单
             var longpress = self ? ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',true)"' : ' oncontextmenu="event.preventDefault();msgLongPress('+idx+',false)"';
             content = '<div class="wx-bubble"'+longpress+'>'+escapeHtml(msg.message||msg.text||'')+'</div>';
@@ -279,7 +292,27 @@ function checkAtMention(input) {
 
 function toggleTranscript(idx) {
     var el = document.getElementById('vt-'+idx);
-    if (el) el.classList.toggle('show');
+    if (!el) return;
+    // ★ 语音转写平滑展开/收起 + 更新提示文字
+    el.classList.toggle('show');
+    // 更新提示文字
+    var hint = el.previousElementSibling;
+    if (hint && hint.classList.contains('wx-voice-hint')) {
+        hint.textContent = el.classList.contains('show') ? '收起' : '转文字';
+    }
+}
+
+// ★ 聊天图片预览（点击放大）
+function previewChatImage(idx) {
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs || !msgs[idx]) return;
+    var msg = msgs[idx];
+    var el = document.getElementById('screen-wechat');
+    var overlay = document.createElement('div');
+    overlay.className = 'wx-img-overlay show';
+    overlay.innerHTML = '<div class="wx-img-preview-box" style="background:'+(msg.color||'#e0e8f0')+';width:80%;aspect-ratio:'+(msg.width||140)+'/'+(msg.height||140)+';max-height:70vh;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(0,0,0,0.4);">'+(escapeHtml(msg.label||'图片'))+'</div>';
+    overlay.addEventListener('click', function(){ overlay.remove(); });
+    el.appendChild(overlay);
 }
 
 // [fix #18] 用 weui.actionSheet 替换

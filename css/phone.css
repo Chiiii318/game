@@ -121,8 +121,8 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-msg-row.self .wx-voice-bubble { background: #95ec69; flex-direction: row-reverse; }
 .wx-voice-icon { display: flex; align-items: center; flex-shrink: 0; }
 .wx-voice-duration { font-size: 14px; color: #333; white-space: nowrap; }
-.wx-voice-transcript { margin-top: 4px; padding: 6px 10px; background: #f0f0f0; border-radius: 4px; font-size: 13px; color: #333; line-height: 1.4; display: none; }
-.wx-voice-transcript.show { display: block; }
+.wx-voice-transcript { margin-top: 4px; padding: 0 10px; background: #f0f0f0; border-radius: 4px; font-size: 13px; color: #333; line-height: 1.4; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; }
+.wx-voice-transcript.show { max-height: 200px; opacity: 1; padding: 6px 10px; }
 
 /* 红包 */
 .wx-redpacket { width: 200px; border-radius: 8px; overflow: hidden; cursor: pointer; }
@@ -805,3 +805,13 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .home-page-dots { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
 .home-page-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: background 0.3s; }
 .home-page-dots .dot.active { background: rgba(255,255,255,0.9); }
+
+/* ★ 聊天图片消息气泡 */
+.wx-img-bubble { border-radius: 6px; overflow: hidden; cursor: pointer; }
+.wx-img-placeholder { border-radius: 6px; display: flex; align-items: center; justify-content: center; color: rgba(0,0,0,0.3); font-size: 12px; min-width: 80px; min-height: 80px; max-width: 200px; max-height: 200px; }
+.wx-img-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: flex; align-items: center; justify-content: center; cursor: pointer; animation: fadeIn 0.2s; }
+
+/* ★ 语音转写体验优化 */
+.wx-voice-hint { font-size: 11px; color: #576b95; margin-top: 4px; cursor: pointer; padding-left: 2px; }
+.wx-voice-transcript { margin-top: 4px; padding: 6px 10px; background: #f0f0f0; border-radius: 4px; font-size: 13px; color: #333; line-height: 1.4; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; padding: 0 10px; }
+.wx-voice-transcript.show { max-height: 200px; opacity: 1; padding: 6px 10px; display: block; }
