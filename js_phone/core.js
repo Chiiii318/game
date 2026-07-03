@@ -2,8 +2,8 @@
 // 手机系统核心 (时间、锁屏、导航、通信)
 // ══════════════════════════════════════
 
-// ═══ 游戏时间 ═══
-var gameTime = { year:2026, month:6, day:28, weekday:'周六', hour:14, minute:30 };
+// ═══ 游戏时间（由父页面 TIME_SYNC 消息驱动，不再自动走）═══
+var gameTime = { year:2026, month:6, day:28, weekday:'周六', hour:10, minute:0 };
 var playerName = '玩家';
 var playerColor = '#ff9eaa';
 var playerWxId = 'player_001'; // 微信号，不可修改
@@ -18,8 +18,7 @@ function updateTimeDisplay() {
 }
 updateTimeDisplay();
 
-// 游戏时间自动走：每30秒游戏内过1分钟
-// 每月天数(含闰年判断)
+// ═══ 时间工具函数（保留供内部使用，不再自动执行）═══
 function daysInMonth(year, month) {
     if (month === 2) {
         var leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
@@ -27,28 +26,22 @@ function daysInMonth(year, month) {
     }
     return [31,28,31,30,31,30,31,31,30,31,30,31][month - 1];
 }
-
 var WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'];
 
-// 前进一天,同时处理月/年进位和星期
 function advanceOneDay() {
     gameTime.day++;
     if (gameTime.day > daysInMonth(gameTime.year, gameTime.month)) {
         gameTime.day = 1;
         gameTime.month++;
-        if (gameTime.month > 12) { gameTime.month = 1; gameTime.year++; }
+        if (gameTime.month > 12) {
+            gameTime.month = 1;
+            gameTime.year++;
+        }
     }
-    // 星期跟着走
     var idx = WEEKDAYS.indexOf(gameTime.weekday);
     if (idx >= 0) gameTime.weekday = WEEKDAYS[(idx + 1) % 7];
 }
-
-setInterval(function() {
-    gameTime.minute++;
-    if (gameTime.minute >= 60) { gameTime.minute = 0; gameTime.hour++; }
-    if (gameTime.hour >= 24) { gameTime.hour = 0; advanceOneDay(); }
-    updateTimeDisplay();
-}, 30000);
+// ★ 已删除 setInterval 自动走时，时间完全由父页面 TIME_SYNC 驱动
 
 function formatChatTime(ts) {
     if(!ts) return "";
@@ -270,6 +263,18 @@ window.addEventListener('message', function(e) {
     // ★ 收到父页面初始化消息，更新玩家姓名
     if (e.data.type === 'PHONE_INIT') {
         if (e.data.playerName) playerName = e.data.playerName;
+        return;
+    }
+
+    // ★ 收到父页面时间同步消息，覆盖 gameTime 并刷新显示
+    if (e.data.type === 'TIME_SYNC' && e.data.time) {
+        gameTime.year = e.data.time.year;
+        gameTime.month = e.data.time.month;
+        gameTime.day = e.data.time.day;
+        gameTime.weekday = e.data.time.weekday;
+        gameTime.hour = e.data.time.hour;
+        gameTime.minute = e.data.time.minute;
+        updateTimeDisplay();
         return;
     }
 

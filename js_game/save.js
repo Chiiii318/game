@@ -136,4 +136,10 @@ function migrateSave(gs) {
     if (!gs.lastPhoneApp) gs.lastPhoneApp = 'wechat';
     if (!gs.values) gs.values = { charm:50, eq:50, connections:30, energy:100, energyMax:100 };
     if (!gs.phoneBadge && gs.phoneBadge !== 0) gs.phoneBadge = 0;
+    // ★ 游戏时间系统兜底：旧存档无日历字段时补默认值
+    if (!gs.year) gs.year = 2026;
+    if (!gs.month) gs.month = 6;
+    if (!gs.date) gs.date = 28;
+    if (!gs.weekday) gs.weekday = '周六';
 }
+

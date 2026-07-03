@@ -297,8 +297,18 @@ async function startGame() {
     if (typeof loadApiConfig === 'function') loadApiConfig();
     if (!window.apiConfig || !window.apiConfig.key) { showToast('请先配置API'); return; }
 
-    gameState = {
-    round: 1, day: 1, timeOfDay: '上午', location: '未知', reputation: 0,
+gameState = {
+    round: 1,
+    day: 1,
+    timeOfDay: '上午',
+    // ★ 游戏时间系统：完整日历日期
+    year: parseInt(document.getElementById('char-year') ? document.getElementById('char-year').value : '2026') || 2026,
+    month: 6,
+    date: 28,
+    weekday: '周六',
+    location: '未知',
+    reputation: 0,
+
     playerCard: playerCard, targetCards: targets,
     narrativePref: document.getElementById('narrative-pref').value,
     history: [], phoneBadge: 0,
@@ -527,18 +537,26 @@ function parseAndRender(response, skipPhone) {
     if (nMatch) narrative = nMatch[1].trim(); else narrative = response.replace(/---[\w_]+---[\s\S]*$/m, '').trim();
 
     const sMatch = response.match(/---STATUS---([\s\S]*?)(?=---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-    if (sMatch) {
-const locMatch = sMatch[1].match(/location\s*[:：]\s*(.+)/);
-const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
-        if (locMatch) gameState.location = locMatch[1].trim();
-        if (timeMatch) {
-            const timeStr = timeMatch[1].trim();
-            const dayMatch = timeStr.match(/Day(\d+)/);
-            const periodMatch = timeStr.match(/(上午|下午|晚上)/);
-            if (dayMatch) gameState.day = parseInt(dayMatch[1]);
-            if (periodMatch) gameState.timeOfDay = periodMatch[1];
+if (sMatch) {
+    const locMatch = sMatch[1].match(/location\s*[:：]\s*(.+)/);
+    const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
+    if (locMatch) gameState.location = locMatch[1].trim();
+    if (timeMatch) {
+        const timeStr = timeMatch[1].trim();
+        const dayMatch = timeStr.match(/Day(\d+)/);
+        const periodMatch = timeStr.match(/(上午|下午|晚上)/);
+        // ★ 日历日期推进：Day变化时同步前进
+        if (dayMatch) {
+            const newDay = parseInt(dayMatch[1]);
+            const diff = newDay - gameState.day;
+            if (diff > 0) {
+                for (let i = 0; i < diff; i++) advanceGameDate();
+            }
+            gameState.day = newDay;
         }
+        if (periodMatch) gameState.timeOfDay = periodMatch[1];
     }
+}
 
     let choices = [];
     const cMatch = response.match(/---CHOICES---([\s\S]*?)(?=---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
@@ -598,8 +616,10 @@ const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
             }
         });
     }
-    renderGameUI(narrative, choices);
-    updatePhoneBadge();
+renderGameUI(narrative, choices);
+updatePhoneBadge();
+// ★ 向手机iframe同步游戏时间
+syncTimeToPhone();
 }
 
 // ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
@@ -715,7 +735,8 @@ function pushStoreToPhone() {
 
 function renderGameUI(narrative, choices) {
     document.getElementById('game-round').textContent = '第' + gameState.round + '回合';
-    document.getElementById('game-time').textContent = 'Day' + gameState.day + ' · ' + gameState.timeOfDay;
+// ★ 显示完整日历日期，如 "2026年6月28日 周六 · 上午"
+    document.getElementById('game-time').textContent = gameState.year + '年' + gameState.month + '月' + gameState.date + '日 ' + gameState.weekday + ' · ' + gameState.timeOfDay;
     document.getElementById('st-location').textContent = gameState.location;
     
     let repLevel = '隐形';
@@ -1068,6 +1089,70 @@ function confirmGoHome() {
 function toggleTag(el) {
     el.classList.toggle('active');
 }
+
+// ══════════════════════════════════════
+// 游戏日历日期工具函数
+// ══════════════════════════════════════
+const WEEKDAYS_GAME = ['周日','周一','周二','周三','周四','周五','周六'];
+
+// 前进一天日历日期（处理月/年进位和星期）
+function advanceGameDate() {
+    gameState.date++;
+    const maxDay = daysInMonthGame(gameState.year, gameState.month);
+    if (gameState.date > maxDay) {
+        gameState.date = 1;
+        gameState.month++;
+        if (gameState.month > 12) {
+            gameState.month = 1;
+            gameState.year++;
+        }
+    }
+    const idx = WEEKDAYS_GAME.indexOf(gameState.weekday);
+    if (idx >= 0) gameState.weekday = WEEKDAYS_GAME[(idx + 1) % 7];
+}
+
+// 每月天数（含闰年）
+function daysInMonthGame(year, month) {
+    if (month === 2) {
+        const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+        return leap ? 29 : 28;
+    }
+    return [31,28,31,30,31,30,31,31,30,31,30,31][month - 1];
+}
+
+// 时段→小时映射
+function timeOfDayToHour(period) {
+    if (period === '上午') return 10;
+    if (period === '下午') return 15;
+    if (period === '晚上') return 21;
+    return 12;
+}
+
+// ★ 向手机iframe发送 TIME_SYNC
+function syncTimeToPhone() {
+    if (!gameState) return;
+    const hour = timeOfDayToHour(gameState.timeOfDay);
+    const timeData = {
+        type: 'TIME_SYNC',
+        time: {
+            year: gameState.year,
+            month: gameState.month,
+            day: gameState.date,
+            weekday: gameState.weekday,
+            hour: hour,
+            minute: 0
+        }
+    };
+    const iframe = document.getElementById('phone-iframe');
+    if (iframe && iframe.contentWindow && iframe.src && iframe.src.indexOf('phone.html') !== -1) {
+        iframe.contentWindow.postMessage(timeData, '*');
+    } else {
+        // iframe未就绪时暂存到队列
+        window._pendingPhoneMessages = window._pendingPhoneMessages || [];
+        window._pendingPhoneMessages.push(timeData);
+    }
+}
+
 // 页面加载完毕后初始化
 document.addEventListener('DOMContentLoaded', () => {
     loadApiConfig();
