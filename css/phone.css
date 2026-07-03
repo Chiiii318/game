@@ -815,3 +815,63 @@ html, body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', '
 .wx-voice-hint { font-size: 11px; color: #576b95; margin-top: 4px; cursor: pointer; padding-left: 2px; }
 .wx-voice-transcript { margin-top: 4px; padding: 6px 10px; background: #f0f0f0; border-radius: 4px; font-size: 13px; color: #333; line-height: 1.4; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; padding: 0 10px; }
 .wx-voice-transcript.show { max-height: 200px; opacity: 1; padding: 6px 10px; display: block; }
+
+/* ★ 红包发送面板 */
+.wx-rp-panel{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;background:linear-gradient(180deg,#c4372b 0%,#e04a3e 50%,#d94436 100%);}
+.wx-rp-panel__nav{display:flex;align-items:center;padding:54px 16px 12px;color:#fff;}
+.wx-rp-panel__nav-back{cursor:pointer;padding:4px;}
+.wx-rp-panel__nav-title{flex:1;text-align:center;font-size:17px;font-weight:600;}
+.wx-rp-panel__body{flex:1;display:flex;flex-direction:column;align-items:center;padding:40px 32px 0;}
+.wx-rp-panel__to{color:rgba(255,255,255,0.8);font-size:14px;margin-bottom:32px;}
+.wx-rp-panel__amount-wrap{display:flex;align-items:baseline;gap:4px;margin-bottom:16px;width:100%;}
+.wx-rp-panel__currency{font-size:24px;color:#fff;font-weight:600;}
+.wx-rp-panel__amount-input{flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.3);font-size:42px;font-weight:700;color:#fff;text-align:center;outline:none;font-family:inherit;padding:8px 0;}
+.wx-rp-panel__amount-input::placeholder{color:rgba(255,255,255,0.4);font-size:24px;}
+.wx-rp-panel__msg-input{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,0.2);font-size:14px;color:rgba(255,255,255,0.9);padding:12px 0;outline:none;text-align:center;font-family:inherit;margin-top:16px;}
+.wx-rp-panel__msg-input::placeholder{color:rgba(255,255,255,0.5);}
+.wx-rp-panel__btn{margin-top:auto;margin-bottom:60px;width:200px;height:200px;border-radius:50%;background:linear-gradient(180deg,#fdd491 0%,#f5b644 100%);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#c4372b;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);}
+.wx-rp-panel__btn:active{transform:scale(0.95);}
+
+/* ★ 开红包动画 */
+.wx-rp-open{position:absolute;inset:0;z-index:100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.wx-rp-open__card{width:260px;background:linear-gradient(180deg,#e04a3e 0%,#c4372b 100%);border-radius:16px;padding:30px 20px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;}
+.wx-rp-open__from{color:rgba(255,255,255,0.9);font-size:15px;font-weight:500;margin-bottom:8px;}
+.wx-rp-open__msg{color:rgba(255,255,255,0.7);font-size:13px;margin-bottom:24px;}
+.wx-rp-open__gold{width:80px;height:80px;border-radius:50%;background:linear-gradient(180deg,#fdd491,#f5b644);display:flex;align-items:center;justify-content:center;font-size:28px;color:#c4372b;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.2);transition:transform 0.3s;}
+.wx-rp-open__gold:active{transform:scale(0.9) rotate(180deg);}
+.wx-rp-open__result{text-align:center;color:#fff;}
+.wx-rp-open__result-amount{font-size:36px;font-weight:700;color:#fdd491;margin:12px 0 8px;}
+.wx-rp-open__result-label{font-size:13px;color:rgba(255,255,255,0.6);}
+.wx-rp-open__close{position:absolute;bottom:-50px;width:32px;height:32px;border:1.5px solid rgba(255,255,255,0.6);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.6);font-size:14px;}
+
+/* ★ 转账面板 */
+.wx-tf-panel{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;background:#fff;}
+.wx-tf-panel__nav{display:flex;align-items:center;padding:54px 16px 12px;background:#fff;}
+.wx-tf-panel__nav-back{cursor:pointer;padding:4px;}
+.wx-tf-panel__nav-title{flex:1;text-align:center;font-size:17px;font-weight:600;color:#000;}
+.wx-tf-panel__body{flex:1;display:flex;flex-direction:column;align-items:center;padding:24px 32px;}
+.wx-tf-panel__to{display:flex;align-items:center;gap:10px;margin-bottom:40px;}
+.wx-tf-panel__to-avatar{width:40px;height:40px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;}
+.wx-tf-panel__to-name{font-size:16px;color:#000;font-weight:500;}
+.wx-tf-panel__amount-wrap{display:flex;align-items:baseline;gap:4px;width:100%;justify-content:center;margin-bottom:16px;}
+.wx-tf-panel__currency{font-size:24px;color:#000;font-weight:600;}
+.wx-tf-panel__amount-input{width:60%;background:transparent;border:none;border-bottom:1.5px solid #e0e0e0;font-size:42px;font-weight:700;color:#000;text-align:center;outline:none;font-family:inherit;padding:8px 0;}
+.wx-tf-panel__amount-input:focus{border-color:#07c160;}
+.wx-tf-panel__amount-input::placeholder{color:#ccc;font-size:24px;}
+.wx-tf-panel__note-input{width:80%;background:transparent;border:none;border-bottom:1px solid #f0f0f0;font-size:14px;color:#666;padding:12px 0;outline:none;text-align:center;font-family:inherit;margin-top:12px;}
+.wx-tf-panel__note-input::placeholder{color:#bbb;}
+.wx-tf-panel__btn{margin-top:auto;margin-bottom:60px;width:80%;padding:14px;background:#07c160;border:none;border-radius:8px;color:#fff;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit;}
+.wx-tf-panel__btn:active{opacity:0.85;}
+
+/* ★ 转账详情页 */
+.wx-tf-detail{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;background:#f5f5f5;}
+.wx-tf-detail__nav{display:flex;align-items:center;padding:54px 16px 12px;background:#fff;}
+.wx-tf-detail__nav-back{cursor:pointer;padding:4px;}
+.wx-tf-detail__nav-title{flex:1;text-align:center;font-size:17px;font-weight:600;color:#000;}
+.wx-tf-detail__body{flex:1;display:flex;flex-direction:column;align-items:center;padding:40px 32px;}
+.wx-tf-detail__icon{width:50px;height:50px;border-radius:50%;background:#f5c542;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.wx-tf-detail__amount{font-size:36px;font-weight:700;color:#000;margin-bottom:8px;}
+.wx-tf-detail__status{font-size:14px;color:#999;margin-bottom:32px;}
+.wx-tf-detail__btn{width:80%;padding:14px;background:#07c160;border:none;border-radius:8px;color:#fff;font-size:17px;font-weight:600;cursor:pointer;font-family:inherit;}
+.wx-tf-detail__btn:active{opacity:0.85;}
+.wx-tf-detail__btn-reject{width:80%;padding:14px;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;color:#666;font-size:15px;cursor:pointer;font-family:inherit;margin-top:12px;text-align:center;}

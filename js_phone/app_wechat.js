@@ -349,14 +349,14 @@ function showPlusMenu() {
 function showPlusPanel() {
     closePlusPanel(); // 防止重复叠加
     var grid = [
-        { key:'album',    label:'相册',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#555" stroke-width="1.4"/><circle cx="8.5" cy="10" r="1.8" stroke="#555" stroke-width="1.2"/><path d="M4 17l5-4 3 2 4-3 4 3" stroke="#555" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
-        { key:'shoot',    label:'拍摄',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="2.5" stroke="#555" stroke-width="1.4"/><path d="M8 7l1.5-2h5L16 7" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="13" r="3" stroke="#555" stroke-width="1.4"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
-        { key:'redpacket',label:'红包',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="#e4574c" stroke-width="1.4"/><path d="M5 9h14" stroke="#e4574c" stroke-width="1.4"/><circle cx="12" cy="11" r="2" stroke="#e4574c" stroke-width="1.3"/></svg>', act:function(){ closePlusPanel(); showRedpacketModal(); } },
-        { key:'transfer', label:'转账',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#555" stroke-width="1.4"/><path d="M12 7v10M9 10h4.5a1.8 1.8 0 0 1 0 3.6H9" stroke="#555" stroke-width="1.4" stroke-linecap="round"/></svg>', act:function(){ closePlusPanel(); showTransferModal(); } },
-        { key:'voicechat',label:'语音通话',icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
-        { key:'location', label:'位置',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 21c4-4.5 7-8 7-11a7 7 0 1 0-14 0c0 3 3 6.5 7 11z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.3" stroke="#555" stroke-width="1.3"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
-        { key:'card',     label:'名片',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#555" stroke-width="1.4"/><circle cx="8.5" cy="11" r="2" stroke="#555" stroke-width="1.2"/><path d="M13 10h5M13 13h5M6 16h6" stroke="#555" stroke-width="1.2" stroke-linecap="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
-        { key:'file',     label:'文件',   icon:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 3h8l4 4v14H6z" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="#555" stroke-width="1.4" stroke-linejoin="round"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } }
+        { key:'album', label:'照片', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5" fill="#fff"/><path d="M3 16l4-4 3 3 5-5 6 6v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2z" fill="#fff" opacity="0.6"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'shoot', label:'拍摄', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><rect x="2" y="7" width="15" height="10" rx="2"/><path d="M17 9.5l4.5-2.5v10L17 14.5v-5z"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'redpacket',label:'红包', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#CF3E36"><rect x="4" y="3" width="16" height="18" rx="2"/><rect x="4" y="3" width="16" height="8" rx="2" fill="#CF3E36"/><circle cx="12" cy="11" r="3" fill="#f5c642" stroke="#CF3E36" stroke-width="0.5"/></svg>', act:function(){ closePlusPanel(); showRedpacketModal(); } },
+        { key:'transfer', label:'转账', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#555" stroke-width="2"/><path d="M8 12h8M14 9l-4 3 4 3" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>', act:function(){ closePlusPanel(); showTransferModal(); } },
+        { key:'voicechat',label:'语音通话',icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.5 0 1 .4 1 1v3.4c0 .5-.5 1-1 1C10.6 22 2 13.4 2 3c0-.5.4-1 1-1h3.5c.5 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'location', label:'位置', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="#fff"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'card', label:'名片', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2.5" fill="#fff"/><rect x="13" y="9" width="6" height="1.5" rx="0.75" fill="#fff"/><rect x="13" y="12.5" width="4" height="1.5" rx="0.75" fill="#fff"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } },
+        { key:'file', label:'文件', icon:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#555"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/><path d="M14 2v6h6" fill="#fff" opacity="0.4"/></svg>', act:function(){ if(_useWeui)weui.alert("功能开发中"); } }
     ];
 
     var cells = grid.map(function(g, i){
@@ -388,27 +388,37 @@ function closePlusPanel() {
 
 // [fix #10] 红包弹窗
 function showRedpacketModal() {
-    if (_useWeui) {
-        weui.dialog({
-            title: '发红包',
-            content: '<input class="weui-input" id="rp-amount" type="number" placeholder="金额" style="border-bottom:1px solid #eee;padding:8px 0;margin-bottom:8px;"><input class="weui-input" id="rp-text" placeholder="恭喜发财，大吉大利" style="border-bottom:1px solid #eee;padding:8px 0;">',
-            className: 'custom',
-            buttons: [
-                { label: '取消', type: 'default', onClick: function(){} },
-                { label: '塞钱进红包', type: 'primary', onClick: function(){
-                    var amount = document.getElementById('rp-amount').value;
-                    var text = document.getElementById('rp-text').value || '恭喜发财，大吉大利';
-                    if (!amount || isNaN(amount) || Number(amount) <= 0) { weui.alert('请输入有效金额'); return; }
-                    var msgs = wxData.conversations[wxData.currentChatId];
-                    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
-                    msgs.push({isSelf:true, type:'redpacket', text:text, amount:Number(amount).toFixed(2), opened:false, _ts:Date.now()});
-                    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
-                    if(chat){ chat.lastMsg='[红包] '+text; chat.sortKey=Date.now(); }
-                    wxNav('conversation', wxData.currentChatId);
-                }}
-            ]
-        });
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    var toName = chat ? chat.name : '对方';
+    var el = document.getElementById('screen-wechat');
+    var panel = document.createElement('div');
+    panel.className = 'wx-rp-panel';
+    panel.id = 'wx-rp-panel';
+    panel.innerHTML = '<div class="wx-rp-panel__nav"><div class="wx-rp-panel__nav-back" onclick="closeRpPanel()">'+IC.back+'</div><div class="wx-rp-panel__nav-title">发红包</div><div style="width:28px"></div></div>'
+        +'<div class="wx-rp-panel__body"><div class="wx-rp-panel__to">发给 '+escapeHtml(toName)+'</div>'
+        +'<div class="wx-rp-panel__amount-wrap"><span class="wx-rp-panel__currency">¥</span><input class="wx-rp-panel__amount-input" id="rp-amount" type="number" placeholder="0.00"></div>'
+        +'<input class="wx-rp-panel__msg-input" id="rp-text" placeholder="恭喜发财，大吉大利">'
+        +'<div class="wx-rp-panel__btn" onclick="submitRedpacket()">塞钱进红包</div></div>';
+    el.appendChild(panel);
+}
+function closeRpPanel() {
+    var p = document.getElementById('wx-rp-panel');
+    if (p) p.remove();
+}
+function submitRedpacket() {
+    var amount = document.getElementById('rp-amount').value;
+    var text = document.getElementById('rp-text').value || '恭喜发财，大吉大利';
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+        if(_useWeui) weui.toast('请输入金额',{duration:1500});
+        return;
     }
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
+    msgs.push({isSelf:true, type:'redpacket', text:text, amount:Number(amount).toFixed(2), opened:false, _ts:Date.now()});
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    if(chat){ chat.lastMsg='[红包] '+text; chat.sortKey=Date.now(); }
+    closeRpPanel();
+    wxNav('conversation', wxData.currentChatId);
 }
 
 // [fix #10] 打开红包
@@ -416,44 +426,101 @@ function openRedpacket(idx) {
     var msgs = wxData.conversations[wxData.currentChatId];
     if (!msgs || !msgs[idx]) return;
     var msg = msgs[idx];
-    if (msg.opened) { weui.alert('红包已被领取'); return; }
-    msg.opened = true;
-    if (_useWeui) weui.toast('已领取 ¥'+(msg.amount||'0.00'), {duration:2000});
+    if (msg.opened) {
+        if(_useWeui) weui.toast('红包已被领取',{duration:1500});
+        return;
+    }
+    // ★ 打开红包动画面板
+    var el = document.getElementById('screen-wechat');
+    var overlay = document.createElement('div');
+    overlay.className = 'wx-rp-open';
+    overlay.id = 'wx-rp-open';
+    overlay.innerHTML = '<div class="wx-rp-open__card">'
+        +'<div class="wx-rp-open__from">'+(msg.sender||'对方')+'的红包</div>'
+        +'<div class="wx-rp-open__msg">'+escapeHtml(msg.text||'恭喜发财')+'</div>'
+        +'<div class="wx-rp-open__gold" onclick="doOpenRedpacket('+idx+')">開</div>'
+        +'</div>'
+        +'<div class="wx-rp-open__close" onclick="closeRpOpen()">✕</div>';
+    el.appendChild(overlay);
 }
+function doOpenRedpacket(idx) {
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs || !msgs[idx]) return;
+    msgs[idx].opened = true;
+    var card = document.querySelector('.wx-rp-open__card');
+    if (card) {
+        card.innerHTML = '<div class="wx-rp-open__result">'
+            +'<div class="wx-rp-open__from">'+(msgs[idx].sender||'对方')+'的红包</div>'
+            +'<div class="wx-rp-open__result-amount">¥'+msgs[idx].amount+'</div>'
+            +'<div class="wx-rp-open__result-label">已存入零钱</div></div>';
+    }
+    setTimeout(function(){ closeRpOpen(); wxNav('conversation', wxData.currentChatId); }, 2000);
+}
+function closeRpOpen() {
+    var p = document.getElementById('wx-rp-open');
+    if (p) p.remove();
+}
+
 
 // [fix #18] 转账弹窗用 weui.dialog
 function showTransferModal() {
-    if (_useWeui) {
-        weui.dialog({
-            title: '转账',
-            content: '<input class="weui-input" id="tf-amount" type="number" placeholder="金额" style="border-bottom:1px solid #eee;padding:8px 0;margin-bottom:8px;"><input class="weui-input" id="tf-note" placeholder="留言（选填）" style="border-bottom:1px solid #eee;padding:8px 0;">',
-            className: 'custom',
-            buttons: [
-                { label: '取消', type: 'default', onClick: function(){} },
-                { label: '转账', type: 'primary', onClick: function(){
-                    var amount = document.getElementById('tf-amount').value;
-                    var note = document.getElementById('tf-note').value||'转账';
-                    if (!amount||isNaN(amount)||Number(amount)<=0) { weui.alert('请输入有效金额'); return; }
-                    var msgs = wxData.conversations[wxData.currentChatId];
-                    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
-                    msgs.push({isSelf:true,type:'transfer',amount:Number(amount).toFixed(2),note:note,status:'pending',_ts:Date.now()});
-                    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
-                    if(chat){ chat.lastMsg='[转账] ¥'+Number(amount).toFixed(2); chat.sortKey=Date.now(); }
-                    wxNav('conversation',wxData.currentChatId);
-                }}
-            ]
-        });
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    var toName = chat ? chat.name : '对方';
+    var toColor = chat ? getAvatarColor(chat.name) : '#4a90d9';
+    var el = document.getElementById('screen-wechat');
+    var panel = document.createElement('div');
+    panel.className = 'wx-tf-panel';
+    panel.id = 'wx-tf-panel';
+    panel.innerHTML = '<div class="wx-tf-panel__nav"><div class="wx-tf-panel__nav-back" onclick="closeTfPanel()">'+IC.back+'</div><div class="wx-tf-panel__nav-title">转账</div><div style="width:28px"></div></div>'
+        +'<div class="wx-tf-panel__body">'
+        +'<div class="wx-tf-panel__to"><div class="wx-tf-panel__to-avatar" style="background:'+toColor+'">'+escapeHtml(toName[0])+'</div><span class="wx-tf-panel__to-name">转账给 '+escapeHtml(toName)+'</span></div>'
+        +'<div class="wx-tf-panel__amount-wrap"><span class="wx-tf-panel__currency">¥</span><input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>'
+        +'<input class="wx-tf-panel__note-input" id="tf-note" placeholder="添加转账说明">'
+        +'<button class="wx-tf-panel__btn" onclick="submitTransfer()">转账</button></div>';
+    el.appendChild(panel);
+}
+function closeTfPanel() {
+    var p = document.getElementById('wx-tf-panel');
+    if (p) p.remove();
+}
+function submitTransfer() {
+    var amount = document.getElementById('tf-amount').value;
+    var note = document.getElementById('tf-note').value || '转账';
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+        if(_useWeui) weui.toast('请输入金额',{duration:1500});
+        return;
     }
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs) { msgs=[]; wxData.conversations[wxData.currentChatId]=msgs; }
+    msgs.push({isSelf:true, type:'transfer', amount:Number(amount).toFixed(2), note:note, status:'pending', _ts:Date.now()});
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    if(chat){ chat.lastMsg='[转账] ¥'+Number(amount).toFixed(2); chat.sortKey=Date.now(); }
+    closeTfPanel();
+    wxNav('conversation', wxData.currentChatId);
 }
 
 // [fix #18] 转账操作用 weui
 function showTransferAction(idx) {
-    if (_useWeui) {
-        weui.actionSheet([
-            { label: '收款', onClick: function(){ acceptTransfer(idx); } },
-            { label: '退回', onClick: function(){ rejectTransfer(idx); } }
-        ], [{ label: '取消', onClick: function(){} }]);
-    }
+    var msgs = wxData.conversations[wxData.currentChatId];
+    if (!msgs || !msgs[idx]) return;
+    var msg = msgs[idx];
+    var el = document.getElementById('screen-wechat');
+    var panel = document.createElement('div');
+    panel.className = 'wx-tf-detail';
+    panel.id = 'wx-tf-detail';
+    panel.innerHTML = '<div class="wx-tf-detail__nav"><div class="wx-tf-detail__nav-back" onclick="closeTfDetail()">'+IC.back+'</div><div class="wx-tf-detail__nav-title">转账详情</div><div style="width:28px"></div></div>'
+        +'<div class="wx-tf-detail__body">'
+        +'<div class="wx-tf-detail__icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" fill="#fff"/></svg></div>'
+        +'<div class="wx-tf-detail__amount">¥'+escapeHtml(msg.amount)+'</div>'
+        +'<div class="wx-tf-detail__status">'+(msg.note||'转账')+'</div>'
+        +'<button class="wx-tf-detail__btn" onclick="acceptTransfer('+idx+');closeTfDetail()">收款</button>'
+        +'<div class="wx-tf-detail__btn-reject" onclick="rejectTransfer('+idx+');closeTfDetail()">退还</div>'
+        +'</div>';
+    el.appendChild(panel);
+}
+function closeTfDetail() {
+    var p = document.getElementById('wx-tf-detail');
+    if (p) p.remove();
 }
 
 function acceptTransfer(idx) {
