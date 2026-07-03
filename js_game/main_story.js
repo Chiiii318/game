@@ -865,13 +865,22 @@ async function handlePhoneInteract(data) {
     // ① 玩家这条回复永久存入仓库
     conv.push({ isSelf: true, sender: '我', message: data.userMessage });
 
-const messages = [
-    { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+        // [fix] 带入最近5条聊天上下文，让AI知道前因后果（含红包/转账）
+        const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
+        const contextLines = recentConv.map(function(m) {
+            if (m.type === 'time' || m.type === 'sys') return '';
+            var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
+            var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
+            return prefix + '：' + content;
+        }).filter(l => l).join('\n');
+
+        const messages = [
+            { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
 【格式铁律】只输出纯文字对话，禁止任何动作描写、旁白、括号注释。禁止出现：(xxx)、（xxx）、*xxx*、【xxx】、「xxx」、双引号包裹的动作。回复必须像真人发微信一样，只有文字内容。
 最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。` },
-    { role: 'user', content: `玩家发送：${data.userMessage}` }
-];
+            { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成"${data.chatName}"的自然回复。` }
+        ];
 
     try {
         const raw = await callAI(messages, null, 300);

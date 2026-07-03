@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>嫂嫂模拟器 · 时代峰峻版</title>
     <!-- 引入游戏外部样式表 -->
     <link rel="stylesheet" href="css/game.css">
@@ -67,14 +67,14 @@
         
         <!-- 🌟 新增的流式开关 -->
         <label style="display: flex; align-items: center; margin-top: 10px; font-size: 14px; cursor: pointer;">
-            <input type="checkbox" id="api-stream-toggle" checked style="margin-right: 8px;">
+            <input type="checkbox" id="api-stream-toggle" checked style="margin-right: 8px;" aria-label="开启流式输出">
             开启流式输出 (打字机效果)
         </label>
 
         <!-- 🌟 新增的联网搜索开关与密钥 -->
         <div class="divider" style="margin: 15px 0;"></div>
         <label style="display: flex; align-items: center; margin-bottom: 10px; font-size: 14px; cursor: pointer; color: #d9534f;">
-            <input type="checkbox" id="api-search-toggle" style="margin-right: 8px;">
+            <input type="checkbox" id="api-search-toggle" style="margin-right: 8px;" aria-label="开启按需联网搜索">
             开启按需联网搜索 (需填下方密钥)
         </label>
         <div class="form-group" id="search-key-group">
@@ -226,7 +226,7 @@
             <div class="divider"></div>
             <div class="form-group">
                 <label class="label">叙事偏好</label>
-                <select class="input-field" id="narrative-pref">
+                <select class="input-field" id="narrative-pref" aria-label="叙事偏好">
 <option value="balanced">平衡（甜虐交替）</option>
 <option value="sweet">偏甜</option>
 <option value="angst">偏虐</option>
@@ -268,9 +268,9 @@
             <span class="game-time-tag" id="game-time">Day1 · 上午</span>
         </div>
         <div class="game-topbar-right">
-            <button class="game-topbar-btn" onclick="openHistory()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h6M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-            <button class="game-topbar-btn" onclick="navTo('page-save')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 3v5h7V3M8 21v-7h8v7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
-            <button class="game-topbar-btn" onclick="confirmGoHome()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 10l9-7 9 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+<button class="game-topbar-btn" onclick="openHistory()" aria-label="查看历史记录"><svg ...></svg></button>
+<button class="game-topbar-btn" onclick="navTo('page-save')" aria-label="存档管理"><svg ...></svg></button>
+<button class="game-topbar-btn" onclick="confirmGoHome()" aria-label="返回主页"><svg ...></svg></button>
         </div>
     </div>
 
@@ -289,7 +289,7 @@
 
     <div class="game-input-bar">
         <input type="text" id="game-input" placeholder="自由输入你想做的事..." onkeydown="if(event.key==='Enter')sendPlayerInput()">
-        <button id="game-send-btn" onclick="sendPlayerInput()">发送</button>
+        <button id="game-send-btn" onclick="sendPlayerInput()" aria-label="发送">发送</button>
     </div>
 </div>
 
@@ -310,7 +310,7 @@
         <div class="divider"></div>
         <button class="btn btn-secondary" onclick="exportSave()" style="margin-bottom:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><path d="M12 15V3M8 7l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>导出存档JSON</button>
         <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><path d="M12 3v12M8 11l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>导入存档JSON</button>
-        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSave(event)">
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSave(event)" aria-label="导入存档文件">
         <div style="height:30px"></div>
     </div>
 </div>
@@ -318,7 +318,7 @@
 <!-- 📱 手机Tab内容（常驻，不再浮窗遮挡）-->
 <div class="tab-pane" id="tab-phone" style="display:none;">
     <div class="phone-frame-embed">
-        <iframe id="phone-iframe" src="about:blank"></iframe>
+       <iframe id="phone-iframe" src="about:blank" title="手机系统"></iframe>
     </div>
 </div>
 

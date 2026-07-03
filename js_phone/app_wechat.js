@@ -438,6 +438,15 @@ function submitRedpacket() {
     var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
     if(chat){ chat.lastMsg='[红包] '+text; chat.sortKey=Date.now(); }
     closeRpPanel();
+    // [fix] 红包发送后通知父页面，让AI知道金额
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    window.parent.postMessage({
+        type: 'PHONE_INTERACT',
+        action: 'wechat_reply',
+        chatId: wxData.currentChatId,
+        chatName: chat ? chat.name : '未知',
+        userMessage: '[发送红包] 金额：' + Number(amount).toFixed(2) + '元，留言：' + text
+    }, '*');
     wxNav('conversation', wxData.currentChatId);
 }
 
@@ -529,6 +538,15 @@ function submitTransfer() {
     var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
     if(chat){ chat.lastMsg='[转账] ¥'+Number(amount).toFixed(2); chat.sortKey=Date.now(); }
     closeTfPanel();
+    // [fix] 转账发送后通知父页面，让AI知道金额
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    window.parent.postMessage({
+        type: 'PHONE_INTERACT',
+        action: 'wechat_reply',
+        chatId: wxData.currentChatId,
+        chatName: chat ? chat.name : '未知',
+        userMessage: '[转账] 金额：' + Number(amount).toFixed(2) + '元，留言：' + note
+    }, '*');
     wxNav('conversation', wxData.currentChatId);
 }
 
