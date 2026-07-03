@@ -42,7 +42,7 @@ function checkApiAndStart() {
 
 let gameState = null; 
 
-// 【核心】动态组装终极 System Prompt
+// 【核心】动态组装终极 System Prompt（分模块按需加载）
 function buildSystemPrompt() {
     const targetNames = Object.keys(gameState.targets);
     const targetStatus = targetNames.map(name => {
@@ -51,7 +51,10 @@ function buildSystemPrompt() {
     }).join('\n');
 
     const currentState = `
-# 👤 模块 7：当前动态状态与专属世界线
+═══════════════════════════════════
+【当前动态状态与专属世界线】
+═══════════════════════════════════
+
 【当前游戏状态】
 回合：${gameState.round} / Day${gameState.day} · ${gameState.timeOfDay}
 地点：${gameState.location}
@@ -59,16 +62,42 @@ function buildSystemPrompt() {
 玩家属性：魅力${gameState.values.charm} / 情商${gameState.values.eq} / 人脉${gameState.values.connections} / 精力${gameState.values.energy}/${gameState.values.energyMax}
 
 【玩家角色卡】：\n${gameState.playerCard}
+
 【攻略对象卡】：\n${gameState.targetCards.map(t => `[初始关系: ${t.relationship}]\n${t.content}`).join('\n\n')}
+
 【攻略对象状态】：\n${targetStatus}
+
 【叙事偏好】：${gameState.narrativePref}
 
 ⚠️ 【本局专属世界线机制（极度机密，绝不直接告诉玩家，仅用于暗中驱动剧情）】⚠️
 ${gameState.customModules || "无特殊暗线"}
 `;
 
-    // 终极拼接返回：核心设定 + 动态状态 + 格式约束！
-    return PROMPT_CORE + "\n" + currentState + "\n" + PROMPT_FORMAT;
+    // ═══ 分模块组装 ═══
+    // 必带模块：世界观+铁律+关系系统 / 叙事文风 / 舆论系统 / NPC独立关系线
+    let prompt = PROMPT_CORE + '\n' + PROMPT_NARRATIVE + '\n' + PROMPT_OPINION + '\n' + PROMPT_NPC;
+
+    // 条件加载：舆论≥30时加载公司危机处理模块
+    if (gameState.reputation >= 30) {
+        prompt += '\n' + PROMPT_CRISIS;
+    }
+
+    // 条件加载：有攻略对象好感≥50时加载亲密规则
+    const hasIntimateCondition = Object.values(gameState.targets).some(t => t.affection >= 50);
+    if (hasIntimateCondition) {
+        prompt += '\n' + PROMPT_INTIMACY;
+    }
+
+    // 随机事件系统每回合带
+    prompt += '\n' + PROMPT_RANDOM;
+
+    // 动态状态（玩家卡+攻略对象卡+当前数值）
+    prompt += '\n' + currentState;
+
+    // 格式约束永远放最后（输出结构规范）
+    prompt += '\n' + PROMPT_FORMAT;
+
+    return prompt;
 }
 
 // ══════════════════════════════════════
