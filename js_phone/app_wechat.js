@@ -2,6 +2,21 @@
 // 微信客户端（WeUI 版 · 全修复）
 // ══════════════════════════════════════
 
+// ★ 基于名字生成固定头像颜色，避免每次同步后颜色变化
+var _avatarColorCache = {};
+var _avatarColors = ['#4a90d9','#f5a623','#7c5ce7','#07c160','#e08080','#5b8def','#f7b731','#2fbd59','#9b59b6','#ff6b81','#4a52e0','#6cb5f0','#e74c3c','#1abc9c','#f39c12'];
+function getAvatarColor(name) {
+    if (!name) return '#4a90d9';
+    if (_avatarColorCache[name]) return _avatarColorCache[name];
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var idx = Math.abs(hash) % _avatarColors.length;
+    _avatarColorCache[name] = _avatarColors[idx];
+    return _avatarColors[idx];
+}
+
 // [fix #1] XSS 防护工具函数
 function escapeHtml(str) {
     if (typeof str !== 'string') return str || '';
@@ -88,7 +103,7 @@ function renderChatlist() {
             var cells = members.slice(0,n).map(function(m,i){return '<div class="avatar-cell" style="background:'+(colors[i]||'#ccc')+'">'+escapeHtml(m)+'</div>';}).join('');
             av = '<div class="wx-avatar-group members-'+n+'">'+cells+'</div>';
         } else {
-            av = '<div class="wx-avatar-single" style="background:'+(c.color||'#07c160')+'">'+escapeHtml(c.avatar||c.name[0]||'?')+'</div>';
+            av = '<div class="wx-avatar-single" style="background:'+getAvatarColor(c.name)+'">'+escapeHtml(c.avatar||c.name[0]||'?')+'</div>';
         }
         var badge = c.unread>0?'<div class="wx-badge">'+c.unread+'</div>':'';
         var name = escapeHtml(c.name)+(c.memberCount?'('+c.memberCount+')':'');
@@ -130,11 +145,14 @@ function renderConversation() {
     var isGroup = chat.isGroup;
 
     var html = msgs.map(function(msg,idx){
+        // ★ 过滤数值指令标记，不渲染为气泡
+        var msgText = msg.message || msg.text || '';
+        if (msgText.indexOf('###') === 0) return '';
         if (msg.type==='time') return '<div class="wx-msg-time">'+escapeHtml(msg.text)+'</div>';
         if (msg.type==='sys') return '<div class="wx-sys-msg">'+escapeHtml(msg.text)+'</div>';
         var self = msg.isSelf;
         var cls = self?'wx-msg-row self':'wx-msg-row';
-        var avColor = self?(typeof playerColor!=='undefined'?playerColor:'#ff9eaa'):(msg.color||'#ccc');
+        var avColor = self ? (typeof playerColor!=='undefined'?playerColor:'#ff9eaa') : getAvatarColor(msg.sender || chat.name);
         var avText = self?(typeof playerName!=='undefined'?playerName[0]:'我'):(msg.sender?msg.sender[0]:'?');
         var clickAv = '';
         if (!self && msg.sender) {
@@ -587,7 +605,11 @@ function renderDiscover() {
 }
 
 function renderMoments() {
-    if (!wxData.moments || wxData.moments.length === 0) return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'discover\')">'+IC.back+'</div></div><div class="wx-navbar-center">朋友圈</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="wxNav(\'publish\')">'+IC.camera+'</div></div></div><div class="wx-body" style="display:flex;justify-content:center;align-items:center;color:#999;font-size:14px;">刷新朋友圈中...</div></div>';
+    if (!wxData.moments || wxData.moments.length === 0) {
+        // ★ 区分loading和真的没数据
+        var hint = appCache['wechat_moments'] === 'loading' ? '刷新朋友圈中...' : '暂无新动态，下拉刷新试试';
+        return '<div class="wechat-container"><div class="wx-navbar"><div class="wx-navbar-left"><div class="wx-navbar-btn" onclick="wxNav(\'discover\')">'+IC.back+'</div></div><div class="wx-navbar-center">朋友圈</div><div class="wx-navbar-right"><div class="wx-navbar-btn" onclick="wxNav(\'publish\')">'+IC.camera+'</div></div></div><div class="wx-body" style="display:flex;align-items:center;justify-content:center;color:#999;">'+hint+'</div></div>';
+    }
 
     var list = wxData.moments.map(function(m,i){
         var likes = m.likes||[];
