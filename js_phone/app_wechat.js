@@ -484,8 +484,35 @@ function closeRpOpen() {
 
 // [fix #18] 转账弹窗用 weui.dialog
 function showTransferModal() {
+    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+    var toName = chat ? chat.name : '对方';
+    var toColor = chat ? getAvatarColor(chat.name) : '#4a90d9';
+    var nameMask = getNameMask(toName);
+    var el = document.getElementById('screen-wechat');
+    var panel = document.createElement('div');
+    panel.className = 'wx-tf-panel';
+    panel.id = 'wx-tf-panel';
+    var h = '<div class="wx-tf-panel__nav">';
+    h += '<div class="wx-tf-panel__nav-back" onclick="closeTfPanel()">' + IC.back + '</div>';
+    h += '<div class="wx-tf-panel__nav-title">转账</div>';
+    h += '<div style="width:28px"></div></div>';
+    h += '<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info">';
+    h += '<div class="wx-tf-panel__header-name">转账给 ' + escapeHtml(toName) + ' (' + escapeHtml(nameMask) + ')</div>';
+    h += '<div class="wx-tf-panel__header-id">微信号：' + escapeHtml(wxData.currentChatId) + '</div>';
+    h += '</div><div class="wx-tf-panel__header-avatar" style="background:' + toColor + '">' + escapeHtml(toName[0]) + '</div></div>';
+    h += '<div class="wx-tf-panel__card">';
+    h += '<div class="wx-tf-panel__card-label">转账金额</div>';
+    h += '<div class="wx-tf-panel__amount-row"><span class="wx-tf-panel__currency">¥</span>';
+    h += '<input class="wx-tf-panel__amount-input" id="tf-amount" type="number" placeholder="0.00"></div>';
+    h += '<input class="wx-tf-panel__note-input" id="tf-note" placeholder="添加转账说明">';
+    h += '<button class="wx-tf-panel__btn" onclick="submitTransfer()">转账</button>';
+    h += '</div>';
+    panel.innerHTML = h;
+    el.appendChild(panel);
+}
 
 function closeTfPanel() {
+
     var p = document.getElementById('wx-tf-panel');
     if (p) p.remove();
 }
@@ -1003,5 +1030,3 @@ function wxSwitchTab(id) {
     else if (id==='discover') wxNav('discover');
     else if (id==='me') wxNav('me');
 }
-
-
