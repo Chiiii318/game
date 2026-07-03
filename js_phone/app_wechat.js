@@ -70,9 +70,8 @@ function wxNav(view, data) {
     if (view === 'chatlist' && wxData.chats.length === 0) {
         if(typeof requestAppData === 'function') requestAppData('wechat');
     }
-    if (view === 'moments' && wxData.moments.length === 0) {
-        if(typeof requestAppData === 'function') requestAppData('wechat_moments');
-    }
+
+    // ★ 朋友圈不主动请求，靠AI每轮剧情推送，省token
 
     if (view === 'chatlist') el.innerHTML = renderChatlist();
     else if (view === 'myprofile') el.innerHTML = renderMyProfile();
@@ -550,6 +549,7 @@ function sendMsg() {
     var chat = wxData.chats.find(function(c){ return c.id === wxData.currentChatId; });
     if(chat) {
         chat.lastMsg = text;
+        chat.time = formatGameTime();
         chat.sortKey = Date.now();
     }
 

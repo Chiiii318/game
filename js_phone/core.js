@@ -392,7 +392,7 @@ if (data.app_data) {
                             avatar: (chat.chatName||chat.chatId)[0],
                             color: chat.color || '#4a90d9',
                             lastMsg: chat.messages[chat.messages.length-1].message || '',
-                            time: '刚刚',
+                            time: formatGameTime(),
                             sortKey: Date.now()
                         };
                         if (chat.isGroup) {
@@ -404,8 +404,8 @@ if (data.app_data) {
                         wxData.chats.push(newChat);
                     }
                         else {
-                        existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
-                        existing.time = '刚刚';
+                            existing.lastMsg = chat.messages[chat.messages.length-1].message || '';
+                            existing.time = formatGameTime();
                     }
                     if (!wxData.conversations[chat.chatId]) wxData.conversations[chat.chatId] = [];
                     var convArr = wxData.conversations[chat.chatId];
@@ -506,7 +506,7 @@ else if (app === 'imessage' && typeof imData !== 'undefined') {
             e.data.replies.forEach(function(t) { msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t}); });
             // 更新聊天列表最后一条
             var chat = wxData.chats.find(function(c){ return c.id === e.data.chatId; });
-            if (chat) { chat.lastMsg = e.data.replies[e.data.replies.length-1] || ''; chat.time = '刚刚'; }
+            if (chat) { chat.lastMsg = e.data.replies[e.data.replies.length-1] || '';chat.time = formatGameTime(); }
             if(typeof wxNav === 'function') wxNav('conversation', e.data.chatId);
         }
     }
