@@ -918,27 +918,48 @@ function _flushPhoneMessages(iframe) {
 }
 // ★ 底部Tab切换：剧情/手机/数值，切换不清空各自进度
 function switchTab(tab) {
+    if (!gameState) return; // 防止未开局时点击报错
+
     gameState.currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    // 剧情页 = page-game 的滚动区；手机/数值 = 独立 pane
-    document.getElementById('game-scroll').style.display   = tab === 'story'  ? '' : 'none';
-    document.querySelector('.game-input-bar').style.display = tab === 'story' ? '' : 'none';
-    document.getElementById('tab-phone').style.display     = tab === 'phone'  ? 'block' : 'none';
-    document.getElementById('tab-values').style.display    = tab === 'values' ? 'block' : 'none';
 
-    // ★ 切换手机/数值Tab时隐藏顶部回合信息栏，剧情Tab恢复
+    document.getElementById('game-scroll').style.display = tab === 'story' ? '' : 'none';
+    document.querySelector('.game-input-bar').style.display = tab === 'story' ? '' : 'none';
+
+    const tabPhoneEl = document.getElementById('tab-phone');
+    if (tabPhoneEl) tabPhoneEl.style.display = tab === 'phone' ? 'block' : 'none';
+
+    const tabValuesEl = document.getElementById('tab-values');
+    if (tabValuesEl) tabValuesEl.style.display = tab === 'values' ? 'block' : 'none';
+
     const topbar = document.querySelector('.game-topbar');
     if (topbar) topbar.style.display = tab === 'story' ? '' : 'none';
 
     if (tab === 'phone') {
         const iframe = document.getElementById('phone-iframe');
-        if (!iframe.src || iframe.src.indexOf('phone.html') === -1) iframe.src = 'phone.html';
-        gameState.phoneBadge = 0; updatePhoneBadge();       // 清红点
-        pushStoreToPhone();                                  // 一次性批量加载全部缓存
-        // Tab记忆：自动回到上次打开的App
-        setTimeout(() => iframe.contentWindow &&
-            iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*'), 150);
+        if (iframe) {
+            if (!iframe.src || !iframe.src.includes('phone.html')) {
+                iframe.src = './phone.html?t=' + new Date().getTime();
+            }
+            gameState.phoneBadge = 0;
+            updatePhoneBadge();
+
+            if (iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.readyState === 'complete') {
+                pushStoreToPhone();
+                setTimeout(() => {
+                    if (iframe.contentWindow) iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
+                }, 150);
+            } else {
+                iframe.onload = function() {
+                    pushStoreToPhone();
+                    setTimeout(() => {
+                        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
+                    }, 150);
+                };
+            }
+        }
     }
+
     if (tab === 'values' && typeof renderValuesTab === 'function') renderValuesTab();
 }
 
