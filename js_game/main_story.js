@@ -500,17 +500,17 @@ async function sendToAI(userText) {
         .replace(/\n/g, '<br>');
 },
 
-            onDone: (fullText) => {
-                // 完全接收完毕后，存入历史，并调用完整的解析逻辑
-                gameState.history.push({ role: 'assistant', content: fullText });
-                gameState.round++;
-                parseAndRender(fullText);
-                autoSave();
-                
-                window.isRequesting = false;
-                setLoading(false); 
-                document.getElementById('game-send-btn').disabled = false;
-            },
+onDone: (fullText) => {
+    // 完全接收完毕后，存入历史，并调用完整的解析逻辑
+    gameState.history.push({ role: 'assistant', content: fullText });
+    // ★ round++ 移到 parseAndRender 里，按 Day 变化触发
+    parseAndRender(fullText);
+    autoSave();
+    window.isRequesting = false;
+    setLoading(false);
+    document.getElementById('game-send-btn').disabled = false;
+},
+
             onError: (err) => {
                 narrativeEl.textContent = '❌ 请求失败：' + err.message;
                 gameState.history.pop();
@@ -546,14 +546,16 @@ if (sMatch) {
         const dayMatch = timeStr.match(/Day(\d+)/);
         const periodMatch = timeStr.match(/(上午|下午|晚上)/);
         // ★ 日历日期推进：Day变化时同步前进
-        if (dayMatch) {
-            const newDay = parseInt(dayMatch[1]);
-            const diff = newDay - gameState.day;
-            if (diff > 0) {
-                for (let i = 0; i < diff; i++) advanceGameDate();
-            }
-            gameState.day = newDay;
-        }
+if (dayMatch) {
+    const newDay = parseInt(dayMatch[1]);
+    const diff = newDay - gameState.day;
+    if (diff > 0) {
+        // ★ Day推进时才增加回合数（一天=一回合）
+        gameState.round += diff;
+        for (let i = 0; i < diff; i++) advanceGameDate();
+    }
+    gameState.day = newDay;
+}
         if (periodMatch) gameState.timeOfDay = periodMatch[1];
     }
 }
@@ -736,7 +738,9 @@ function pushStoreToPhone() {
 function renderGameUI(narrative, choices) {
     document.getElementById('game-round').textContent = '第' + gameState.round + '回合';
 // ★ 显示完整日历日期，如 "2026年6月28日 周六 · 上午"
-    document.getElementById('game-time').textContent = gameState.year + '年' + gameState.month + '月' + gameState.date + '日 ' + gameState.weekday + ' · ' + gameState.timeOfDay;
+// ★ 简短时间格式，避免手机上换行
+var displayHour = timeOfDayToHour(gameState.timeOfDay);
+document.getElementById('game-time').textContent = gameState.month + '/' + gameState.date + ' ' + gameState.weekday + ' · ' + (displayHour < 10 ? '0' : '') + displayHour + ':00';
     document.getElementById('st-location').textContent = gameState.location;
     
     let repLevel = '隐形';
@@ -862,8 +866,10 @@ async function handlePhoneInteract(data) {
     if (data.action === 'wechat_reply') {
     const store = ensurePhoneStore();
     const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
-    // ① 玩家这条回复永久存入仓库
+    // ① 玩家这条回复永久存入仓库（红包/转账已在手机端push卡片，跳过文字版）
+if (!data.skipPush) {
     conv.push({ isSelf: true, sender: '我', message: data.userMessage });
+}
 
         // [fix] 带入最近5条聊天上下文，让AI知道前因后果（含红包/转账）
         const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);

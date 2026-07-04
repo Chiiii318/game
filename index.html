@@ -263,15 +263,15 @@
 <!-- 游戏主界面 -->
 <div class="page" id="page-game">
     <div class="game-topbar">
-        <div class="game-topbar-left">
-            <span class="game-round" id="game-round">第1回合</span>
-            <span class="game-time-tag" id="game-time">Day1 · 上午</span>
-        </div>
-        <div class="game-topbar-right">
-<button class="game-topbar-btn" onclick="openHistory()" aria-label="查看历史记录"><svg ...></svg></button>
-<button class="game-topbar-btn" onclick="navTo('page-save')" aria-label="存档管理"><svg ...></svg></button>
-<button class="game-topbar-btn" onclick="confirmGoHome()" aria-label="返回主页"><svg ...></svg></button>
-        </div>
+<div class="game-topbar-left" style="min-width:0;overflow:hidden;white-space:nowrap;">
+    <span class="game-round" id="game-round">第1回合</span>
+    <span class="game-time-tag" id="game-time" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw;display:inline-block;vertical-align:middle;">Day1 · 上午</span>
+</div>
+<div class="game-topbar-right">
+<button class="game-topbar-btn" onclick="openHistory()" aria-label="查看历史记录"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h6M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+<button class="game-topbar-btn" onclick="navTo('page-save')" aria-label="存档管理"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 3v5h7V3M8 21v-7h8v7" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+<button class="game-topbar-btn" onclick="confirmGoHome()" aria-label="返回主页"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12l8-7 8 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V19a1 1 0 0 0 1 1h3.5v-4h3v4H17a1 1 0 0 0 1-1v-8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+</div>
     </div>
 
     <div class="game-scroll" id="game-scroll">

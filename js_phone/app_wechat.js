@@ -438,15 +438,16 @@ function submitRedpacket() {
     var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
     if(chat){ chat.lastMsg='[红包] '+text; chat.sortKey=Date.now(); }
     closeRpPanel();
-    // [fix] 红包发送后通知父页面，让AI知道金额
-    var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
-    window.parent.postMessage({
-        type: 'PHONE_INTERACT',
-        action: 'wechat_reply',
-        chatId: wxData.currentChatId,
-        chatName: chat ? chat.name : '未知',
-        userMessage: '[发送红包] 金额：' + Number(amount).toFixed(2) + '元，留言：' + text
-    }, '*');
+// [fix] 红包发送后通知父页面，让AI知道金额（skipPush标记避免重复入库文字气泡）
+var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;});
+window.parent.postMessage({
+    type: 'PHONE_INTERACT',
+    action: 'wechat_reply',
+    chatId: wxData.currentChatId,
+    chatName: chat ? chat.name : '未知',
+    userMessage: '[发送红包] 金额：' + Number(amount).toFixed(2) + '元，留言：' + text,
+    skipPush: true  // ★ 已在本地push了卡片消息，父页面不要再push文字版
+}, '*');
     wxNav('conversation', wxData.currentChatId);
 }
 
