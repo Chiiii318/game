@@ -26,21 +26,21 @@ function goBackFromSave() {
 function checkApiAndStart() {
     // 1. 先检查有没有配置 API (假设你的 save.js 里有 loadApiConfig)
     if (typeof loadApiConfig === 'function') loadApiConfig();
-    
+
     if (!window.apiConfig || !window.apiConfig.key) {
         // 如果没配 API，弹窗提示并跳转到 API 配置页
         showToast('请先配置 API Key');
         navTo('page-api');
-        } else {
+    } else {
         // 🌟 如果配置了，跳转到“填写人设”的新建游戏页面！
-        navTo('page-character'); 
+        navTo('page-character');
     }
 }
 // ══════════════════════════════════════
 // 游戏主循环与核心 Prompt 动态组装引擎
 // ══════════════════════════════════════
 
-let gameState = null; 
+let gameState = null;
 
 // 【核心】动态组装终极 System Prompt（分模块按需加载）
 function buildSystemPrompt() {
@@ -50,13 +50,20 @@ function buildSystemPrompt() {
         return `  ${name}：好感${t.affection} / 占有欲${t.possessiveness} / 信任${t.trust} / 警惕${t.alertness}`;
     }).join('\n');
 
+    // ★ 新增：随机事件间隔计算
+    const roundsSinceLastEvent = gameState.round - (gameState.lastRandomEventRound || 0);
+    const randomEventHint = roundsSinceLastEvent >= 2
+        ? `距上次随机事件已过${roundsSinceLastEvent}天，本回合必须触发一个随机事件`
+        : `距上次随机事件已过${roundsSinceLastEvent}天，可选择是否触发`;
+
     const currentState = `
 ═══════════════════════════════════
 【当前动态状态与专属世界线】
 ═══════════════════════════════════
-
 【当前游戏状态】
 回合：${gameState.round} / Day${gameState.day} · ${gameState.timeOfDay}
+本日已进行对话轮次：${gameState.todayDialogCount || 1}
+${randomEventHint}
 地点：${gameState.location}
 舆论值：${gameState.reputation}/100
 玩家属性：魅力${gameState.values.charm} / 情商${gameState.values.eq} / 人脉${gameState.values.connections} / 精力${gameState.values.energy}/${gameState.values.energyMax}
@@ -140,7 +147,7 @@ function goStep(n) {
 function switchPlayerTab(tab) {
     document.querySelectorAll('#player-tabs .tab-item').forEach(el => el.classList.remove('active'));
     document.querySelector(`#player-tabs .tab-item[onclick="switchPlayerTab('${tab}')"]`).classList.add('active');
-    
+
     document.getElementById('player-tab-quick').style.display = tab === 'quick' ? 'block' : 'none';
     document.getElementById('player-tab-paste').style.display = tab === 'paste' ? 'block' : 'none';
 }
@@ -174,7 +181,7 @@ async function generatePlayerCard() {
     const btn = document.querySelector('button[onclick="generatePlayerCard()"]');
     const resArea = document.getElementById('gen-card-area');
     const resEl = document.getElementById('player-card-result');
-    
+
     btn.textContent = '⏳ AI 正在奋笔疾书...';
     btn.disabled = true;
     resArea.style.display = 'block';
@@ -188,16 +195,16 @@ async function generatePlayerCard() {
     const pLook = document.getElementById('char-look').value;
     const pFam = document.getElementById('char-fam') ? document.getElementById('char-fam').value : '';
     const pLview = document.getElementById('char-lview') ? document.getElementById('char-lview').value : '';
-    
+
     // 取出玩家纯自由输入的暗线和自定义一句话
     const pCustom = document.getElementById('char-custom') ? document.getElementById('char-custom').value.trim() : '';
-    
+
     // 组装性格维度 (防抖：万一没获取到则为空)
-          const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
+    const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '随机';
 
-const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 家庭经济:${getVal('char-fam')}, 恋爱观:${getVal('char-lview')}`;
+    const traits = `社交:${getVal('char-soc')}, 决策:${getVal('char-dec')}, 家庭经济:${getVal('char-fam')}, 恋爱观:${getVal('char-lview')}`;
 
-       const aiPrompt = `你是《嫂嫂模拟器》的角色卡辅助生成AI。本游戏围绕中国娱乐公司"时代峰峻"（总部北京，分部重庆）及其旗下艺人展开。所有角色设定默认基于中国内地背景。
+    const aiPrompt = `你是《嫂嫂模拟器》的角色卡辅助生成AI。本游戏围绕中国娱乐公司"时代峰峻"（总部北京，分部重庆）及其旗下艺人展开。所有角色设定默认基于中国内地背景。
 
 请根据玩家提供的信息，生成一份完整的、极度丰满的【玩家角色卡】。
 
@@ -258,14 +265,14 @@ ${pCustom || '未填写'}
 
     try {
         const result = await callAI([
-            { role: 'system', content: '你是一位顶级的文字游戏角色设计师。你的文笔极其细腻，擅长用具体的感官细节和微小的行为习惯来刻画人物。输出必须严格遵循用户指定的格式，不添加任何额外标题或解释。' }, 
+            { role: 'system', content: '你是一位顶级的文字游戏角色设计师。你的文笔极其细腻，擅长用具体的感官细节和微小的行为习惯来刻画人物。输出必须严格遵循用户指定的格式，不添加任何额外标题或解释。' },
             { role: 'user', content: aiPrompt }
         ], null, 2000);
         resEl.value = result.trim();
     } catch (e) {
         resEl.value = '生成失败：' + e.message + '\n请检查 API 配置或网络。';
     }
-    
+
     btn.textContent = '✨ 重新生成人设卡';
     btn.disabled = false;
 }
@@ -286,49 +293,54 @@ async function startGame() {
 
     const targetDivs = document.querySelectorAll('.target-card');
     const targets = [];
-    targetDivs.forEach(div => { 
-        const val = div.querySelector('.target-textarea').value.trim(); 
+    targetDivs.forEach(div => {
+        const val = div.querySelector('.target-textarea').value.trim();
         const relEl = div.querySelector('.target-rel');
         const rel = relEl ? relEl.value.trim() : '陌生人'; // 🌟 独立抓取每个男主的关系！
-        if (val) targets.push({ content: val, relationship: rel || '陌生人' }); 
+        if (val) targets.push({ content: val, relationship: rel || '陌生人' });
     });
     if (targets.length === 0) { showToast('请至少填写一个攻略对象'); return; }
 
     if (typeof loadApiConfig === 'function') loadApiConfig();
     if (!window.apiConfig || !window.apiConfig.key) { showToast('请先配置API'); return; }
 
-gameState = {
-    round: 1,
-    day: 1,
-    timeOfDay: '上午',
-    // ★ 游戏时间系统：完整日历日期
-    year: parseInt(document.getElementById('char-year') ? document.getElementById('char-year').value : '2026') || 2026,
-    month: 6,
-    date: 28,
-    weekday: '周六',
-    location: '未知',
-    reputation: 0,
-
-    playerCard: playerCard, targetCards: targets,
-    narrativePref: document.getElementById('narrative-pref').value,
-    history: [], phoneBadge: 0,
-    values: { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 },
-    targets: {}, customModules: "",
-    phoneStore: {                       // ★ 全局手机仓库
-        wechat: { chats: [], conversations: {}, moments: [] },
-        weibo: [],weibo_hotsearch: [],douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: []
-    },
-    currentTab: 'story',                // ★ 当前底部Tab（默认剧情）
-    lastPhoneApp: 'wechat'             // ★ 手机内最后停留的App（Tab记忆）
-};
-        // ★ 提取玩家姓名存入 gameState
+    gameState = {
+        round: 1,
+        day: 1,
+        timeOfDay: '上午',
+        timeBlock: 'morning', // ★ 新增：时间块系统（morning/afternoon/evening）
+        todayDialogCount: 1,  // ★ 新增：当前游戏日内已进行的对话轮次
+        lastRandomEventRound: 0, // ★ 新增：上次触发随机事件的回合数
+        // ★ 游戏时间系统：完整日历日期
+        year: parseInt(document.getElementById('char-year') ? document.getElementById('char-year').value : '2026') || 2026,
+        month: 6,
+        date: 28,
+        weekday: '周六',
+        location: '未知',
+        reputation: 0,
+        playerCard: playerCard,
+        targetCards: targets,
+        narrativePref: document.getElementById('narrative-pref').value,
+        history: [],
+        phoneBadge: 0,
+        values: { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 },
+        targets: {},
+        customModules: "",
+        phoneStore: { // ★ 全局手机仓库
+            wechat: { chats: [], conversations: {}, moments: [] },
+            weibo: [], weibo_hotsearch: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: []
+        },
+        currentTab: 'story', // ★ 当前底部Tab（默认剧情）
+        lastPhoneApp: 'wechat' // ★ 手机内最后停留的App（Tab记忆）
+    };
+    // ★ 提取玩家姓名存入 gameState
     gameState.playerName = document.getElementById('char-name').value.trim() || '玩家';
 
     // ① 先解析每个攻略对象的名字，填充 gameState.targets
     targets.forEach((cardObj, idx) => {
 
         let name = '';
-        const patterns = [ /名字[：:]\s*(.+)/, /姓名[：:]\s*(.+)/, /角色[：:]\s*(.+)/, /^[【\[](.+?)[】\]]/m, /^(.{2,4})[,，\s/|·]/m ];
+        const patterns = [/名字[：:]\s*(.+)/, /姓名[：:]\s*(.+)/, /角色[：:]\s*(.+)/, /^[【\[](.+?)[】\]]/m, /^(.{2,4})[,，\s/|·]/m];
         for (const p of patterns) {
             const m = cardObj.content.match(p);
             if (m) { name = m[1].trim().split(/[\s,，、/|·：:]/)[0]; break; }
@@ -340,14 +352,14 @@ gameState = {
     // ② 再把已解析出的攻略对象写入微信通讯录，避免开局空白
     Object.keys(gameState.targets).forEach(name => {
         const id = 'wx_' + name;
-        gameState.phoneStore.wechat.chats.push({ id, name, avatar:name[0], color:'#4a90d9', lastMsg:'（还没有聊天记录）', time:'' });
+        gameState.phoneStore.wechat.chats.push({ id, name, avatar: name[0], color: '#4a90d9', lastMsg: '（还没有聊天记录）', time: '' });
         gameState.phoneStore.wechat.conversations[id] = [];
     });
 
-        // ★ 新游戏：清空手机 iframe 的旧数据
+    // ★ 新游戏：清空手机 iframe 的旧数据
     window._pendingPhoneMessages = [];
     var phoneIframe = document.getElementById('phone-iframe');
-        if (phoneIframe && phoneIframe.contentWindow && phoneIframe.src && phoneIframe.src.indexOf('phone.html') !== -1) {
+    if (phoneIframe && phoneIframe.contentWindow && phoneIframe.src && phoneIframe.src.indexOf('phone.html') !== -1) {
         phoneIframe.contentWindow.postMessage({ type: 'PHONE_INIT', playerName: gameState.playerName }, '*');
     }
 
@@ -361,10 +373,10 @@ gameState = {
 async function generateCustomWorldline() {
     setLoading(true);
     document.querySelector('.loading-text').textContent = "正在演算本局专属的世界线与暗线剧本...";
-    
+
     const pJob = document.getElementById('char-job') ? document.getElementById('char-job').value : '未知';
     const pSecret = document.getElementById('char-secret') ? document.getElementById('char-secret').value : '无特殊秘密';
-    const relationDesc = gameState.targetCards.map((t, idx) => `目标${idx+1}: \n设定:${t.content}\n【与玩家初始关系】:${t.relationship}`).join('\n\n');
+    const relationDesc = gameState.targetCards.map((t, idx) => `目标${idx + 1}: \n设定:${t.content}\n【与玩家初始关系】:${t.relationship}`).join('\n\n');
 
     const initPrompt = `你是一个游戏系统设计师。请根据玩家提供的身份，生成一份完整的【专属职业机制模块】，供游戏主脑在运行时进行推演。
 
@@ -388,12 +400,57 @@ ${relationDesc}
 
 二、按需生成的内容（如有隐藏身份、多账号等需求，请自行添加：玩家发布功能、信息暴露风险机制、圈内泄露风险、外部力量介入机制等）。
 
+三、【必须输出】根据玩家的职业/身份和各攻略对象的初始关系，输出初始数值区块。规则：
+- charm（魅力）：根据外貌和职业推断，30-80
+- eq（情商）：根据性格推断，30-80
+- connections（人脉）：根据职业和背景推断，10-70
+- energy（精力）：固定100
+- 每个攻略对象的 affection：朋友关系35-50，前任40-60，同事20-35，陌生人0-15，粉丝关系5-20
+- 每个攻略对象的 trust：朋友50-70，同事40-60，前任30-50，陌生人30-40
+- 每个攻略对象的 alertness：默认10-25，前任可能30-50
+
+格式必须严格如下（一行一条，英文冒号）：
+---INITIAL_VALUES---
+charm: 65
+eq: 45
+connections: 55
+energy: 100
+affection_角色名: 35
+trust_角色名: 60
+alertness_角色名: 15
+---END_INITIAL_VALUES---
+
 注意：直接输出这些设定的文本（格式清晰即可），不要废话，这份文本将被直接注入到游戏主循环的 Prompt 中，作为约束 AI 的法则。`;
 
     try {
-        const response = await callAI([{ role: 'system', content: '严格按照指定格式输出底层游戏规则模块。' }, { role: 'user', content: initPrompt }], null, 2500);
-        gameState.customModules = response.trim();
+        const response = await callAI([{ role: 'system', content: '严格按照指定格式输出底层游戏规则模块。' },
+        { role: 'user', content: initPrompt }], null, 2500);
 
+        // ★ 新增：解析 INITIAL_VALUES 区块，覆盖初始数值
+        const ivMatch = response.match(/---INITIAL_VALUES---([\s\S]*?)---END_INITIAL_VALUES---/);
+        if (ivMatch) {
+            ivMatch[1].trim().split('\n').forEach(line => {
+                const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
+                if (!m) return;
+                const k = m[1].trim(), v = parseInt(m[2].trim());
+                if (isNaN(v)) return;
+                if (['charm', 'eq', 'connections', 'energy'].includes(k)) {
+                    gameState.values[k] = Math.max(0, Math.min(100, v));
+                } else if (k.startsWith('affection_')) {
+                    const name = k.replace('affection_', '');
+                    if (gameState.targets[name]) gameState.targets[name].affection = Math.max(0, Math.min(100, v));
+                } else if (k.startsWith('trust_')) {
+                    const name = k.replace('trust_', '');
+                    if (gameState.targets[name]) gameState.targets[name].trust = Math.max(0, Math.min(100, v));
+                } else if (k.startsWith('alertness_')) {
+                    const name = k.replace('alertness_', '');
+                    if (gameState.targets[name]) gameState.targets[name].alertness = Math.max(0, Math.min(100, v));
+                }
+            });
+        }
+
+        // 去掉 INITIAL_VALUES 区块后存为 customModules（不让这段数据污染 prompt）
+        gameState.customModules = response.replace(/---INITIAL_VALUES---[\s\S]*?---END_INITIAL_VALUES---/, '').trim();
         document.querySelector('.loading-text').textContent = "正在生成第一回合剧情...";
         await sendFirstRound();
     } catch (e) {
@@ -407,32 +464,32 @@ async function sendFirstRound() {
     window.isRequesting = true;            // ← 新增：标记请求开始
 
     const narrativeEl = document.getElementById('game-narrative');
-    narrativeEl.textContent = '...'; 
+    narrativeEl.textContent = '...';
     setLoading(true);
 
     try {
         const messages = [
-            { role: 'system', content: buildSystemPrompt() }, 
+            { role: 'system', content: buildSystemPrompt() },
             { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' }
         ];
 
         gameState.history.push({ role: 'user', content: '[游戏开始]' });
 
         await callAIStream(messages, {
-        onChunk: (chunk, fullText) => {
-    let displayStr = fullText;
-    const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-    if (nMatch) {
-        displayStr = nMatch[1].trim();
-    } else if (fullText.includes('---')) {
-        displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
-    }
-    narrativeEl.innerHTML = displayStr
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
-},
+            onChunk: (chunk, fullText) => {
+                let displayStr = fullText;
+                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+                if (nMatch) {
+                    displayStr = nMatch[1].trim();
+                } else if (fullText.includes('---')) {
+                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+                }
+                narrativeEl.innerHTML = displayStr
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+            },
 
             onDone: (fullText) => {
                 gameState.history.push({ role: 'assistant', content: fullText });
@@ -447,11 +504,11 @@ async function sendFirstRound() {
                 setLoading(false);
             }
         });
-   } catch (e) {
-    narrativeEl.textContent = '❌ 请求出错：' + e.message;
-    window.isRequesting = false;
-    setLoading(false);
-}
+    } catch (e) {
+        narrativeEl.textContent = '❌ 请求出错：' + e.message;
+        window.isRequesting = false;
+        setLoading(false);
+    }
 }
 
 
@@ -461,19 +518,19 @@ async function sendPlayerInput() {
     const text = input.value.trim();
     if (!text) return; input.value = ''; await sendToAI(text);
 }
-function sendChoice(choiceText) { if(!window.isRequesting) sendToAI('我选择：' + choiceText); }
-function sendContinue() { if(!window.isRequesting) sendToAI('[继续]'); }
+function sendChoice(choiceText) { if (!window.isRequesting) sendToAI('我选择：' + choiceText); }
+function sendContinue() { if (!window.isRequesting) sendToAI('[继续]'); }
 
 async function sendToAI(userText) {
     if (window.isRequesting) return;
-    
-    window.isRequesting = true; 
-    setLoading(true); 
+
+    window.isRequesting = true;
+    setLoading(true);
     document.getElementById('game-send-btn').disabled = true;
-    
+
     // 玩家发出的文字，先存入历史记录
     gameState.history.push({ role: 'user', content: userText });
-    
+
     const messages = [{ role: 'system', content: buildSystemPrompt() }];
     // 控制历史记录长度，防止越来越卡
     const recentHistory = gameState.history.slice(-15);
@@ -485,37 +542,37 @@ async function sendToAI(userText) {
     try {
         // 核心修改：调用流式函数 callAIStream
         await callAIStream(messages, {
-       onChunk: (chunk, fullText) => {
-    let displayStr = fullText;
-    const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-    if (nMatch) {
-        displayStr = nMatch[1].trim();
-    } else if (fullText.includes('---')) {
-        displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
-    }
-    narrativeEl.innerHTML = displayStr
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
-},
+            onChunk: (chunk, fullText) => {
+                let displayStr = fullText;
+                const nMatch = fullText.match(/---NARRATIVE---([\s\S]*?)(?=---STATUS---|---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
+                if (nMatch) {
+                    displayStr = nMatch[1].trim();
+                } else if (fullText.includes('---')) {
+                    displayStr = fullText.replace(/---[\w_]+---/g, '').trim();
+                }
+                narrativeEl.innerHTML = displayStr
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+            },
 
-onDone: (fullText) => {
-    // 完全接收完毕后，存入历史，并调用完整的解析逻辑
-    gameState.history.push({ role: 'assistant', content: fullText });
-    // ★ round++ 移到 parseAndRender 里，按 Day 变化触发
-    parseAndRender(fullText);
-    autoSave();
-    window.isRequesting = false;
-    setLoading(false);
-    document.getElementById('game-send-btn').disabled = false;
-},
+            onDone: (fullText) => {
+                // 完全接收完毕后，存入历史，并调用完整的解析逻辑
+                gameState.history.push({ role: 'assistant', content: fullText });
+                // ★ round++ 移到 parseAndRender 里，按 Day 变化触发
+                parseAndRender(fullText);
+                autoSave();
+                window.isRequesting = false;
+                setLoading(false);
+                document.getElementById('game-send-btn').disabled = false;
+            },
 
             onError: (err) => {
                 narrativeEl.textContent = '❌ 请求失败：' + err.message;
                 gameState.history.pop();
                 window.isRequesting = false;
-                setLoading(false); 
+                setLoading(false);
                 document.getElementById('game-send-btn').disabled = false;
             }
         });
@@ -523,7 +580,7 @@ onDone: (fullText) => {
         narrativeEl.textContent = '❌ 请求出错：' + e.message;
         gameState.history.pop();
         window.isRequesting = false;
-        setLoading(false); 
+        setLoading(false);
         document.getElementById('game-send-btn').disabled = false;
     }
 }
@@ -537,28 +594,43 @@ function parseAndRender(response, skipPhone) {
     if (nMatch) narrative = nMatch[1].trim(); else narrative = response.replace(/---[\w_]+---[\s\S]*$/m, '').trim();
 
     const sMatch = response.match(/---STATUS---([\s\S]*?)(?=---CHOICES---|---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
-if (sMatch) {
-    const locMatch = sMatch[1].match(/location\s*[:：]\s*(.+)/);
-    const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
-    if (locMatch) gameState.location = locMatch[1].trim();
-    if (timeMatch) {
-        const timeStr = timeMatch[1].trim();
-        const dayMatch = timeStr.match(/Day(\d+)/);
-        const periodMatch = timeStr.match(/(上午|下午|晚上)/);
-        // ★ 日历日期推进：Day变化时同步前进
-if (dayMatch) {
-    const newDay = parseInt(dayMatch[1]);
-    const diff = newDay - gameState.day;
-    if (diff > 0) {
-        // ★ Day推进时才增加回合数（一天=一回合）
-        gameState.round += diff;
-        for (let i = 0; i < diff; i++) advanceGameDate();
+    if (sMatch) {
+        const locMatch = sMatch[1].match(/location\s*[:：]\s*(.+)/);
+        const timeMatch = sMatch[1].match(/time\s*[:：]\s*(.+)/);
+        if (locMatch) gameState.location = locMatch[1].trim();
+        if (timeMatch) {
+            const timeStr = timeMatch[1].trim();
+            const dayMatch = timeStr.match(/Day(\d+)/);
+            const periodMatch = timeStr.match(/(上午|下午|晚上)/);
+            // ★ 时间块映射表
+            const periodToBlock = { '上午': 'morning', '下午': 'afternoon', '晚上': 'evening' };
+            // ★ 日历日期推进：Day变化时同步前进
+            if (dayMatch) {
+                const newDay = parseInt(dayMatch[1]);
+                const diff = newDay - gameState.day;
+if (diff > 0) {
+    gameState.round += diff;
+    for (let i = 0; i < diff; i++) advanceGameDate();
+    gameState.todayDialogCount = 1;
+    // ★ 新的一天精力自动恢复满
+    gameState.values.energy = gameState.values.energyMax || 100;
+} else {
+                    // ★ 同一天内：对话轮次+1
+                    gameState.todayDialogCount = (gameState.todayDialogCount || 1) + 1;
+                }
+                gameState.day = newDay;
+            } else {
+                // ★ 没有Day信息时也累加对话轮次
+                gameState.todayDialogCount = (gameState.todayDialogCount || 1) + 1;
+            }
+            if (periodMatch) {
+                const newPeriod = periodMatch[1];
+                // ★ 更新时间块
+                gameState.timeBlock = periodToBlock[newPeriod] || gameState.timeBlock;
+                gameState.timeOfDay = newPeriod;
+            }
+        }
     }
-    gameState.day = newDay;
-}
-        if (periodMatch) gameState.timeOfDay = periodMatch[1];
-    }
-}
 
     let choices = [];
     const cMatch = response.match(/---CHOICES---([\s\S]*?)(?=---PHONE_DATA---|---DATA_UPDATE---|---END---|$)/);
@@ -581,17 +653,17 @@ if (dayMatch) {
                 .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');           // key没引号的补上
             // 修复未闭合的花括号/方括号
             let fixed = rawJson;
-            let opens = (fixed.match(/\{/g)||[]).length;
-            let closes = (fixed.match(/\}/g)||[]).length;
+            let opens = (fixed.match(/\{/g) || []).length;
+            let closes = (fixed.match(/\}/g) || []).length;
             while (closes < opens) { fixed += '}'; closes++; }
-            let openB = (fixed.match(/\[/g)||[]).length;
-            let closeB = (fixed.match(/\]/g)||[]).length;
+            let openB = (fixed.match(/\[/g) || []).length;
+            let closeB = (fixed.match(/\]/g) || []).length;
             while (closeB < openB) { fixed += ']'; closeB++; }
             const newPhoneData = JSON.parse(fixed);
 
             mergeIntoPhoneStore(newPhoneData);
             let newBadge = 0;
-            if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v||0));
+            if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v || 0));
             gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
             pushStoreToPhone();
         } catch (e) { console.error('手机数据解析失败', e); }
@@ -602,26 +674,60 @@ if (dayMatch) {
             const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
             if (!m) return;
             const key = m[1].trim(), val = m[2].trim();
+
+            // ★ 通用数值解析辅助函数（支持+/-相对值和绝对值，clamp到0-100）
+            const parseNumeric = (current, rawVal) => {
+                const n = parseInt(rawVal);
+                if (isNaN(n)) return current;
+                return (rawVal.startsWith('+') || rawVal.startsWith('-'))
+                    ? Math.max(0, Math.min(100, current + n))
+                    : Math.max(0, Math.min(100, n));
+            };
+
             if (key === 'reputation') {
-                const n = parseInt(val);
-                if (!isNaN(n)) {
-                    gameState.reputation = (val.startsWith('+')||val.startsWith('-')) ? Math.max(0, Math.min(100, gameState.reputation + n)) : Math.max(0, Math.min(100, n));
+                gameState.reputation = parseNumeric(gameState.reputation, val);
+            }
+            // ★ 新增：玩家属性 charm / eq / connections / energy
+            else if (['charm', 'eq', 'connections', 'energy'].includes(key)) {
+                gameState.values[key] = parseNumeric(gameState.values[key] || 50, val);
+            }
+            // ★ 新增：trust_xxx → 攻略对象信任值
+            else if (key.startsWith('trust_')) {
+                const name = key.replace('trust_', '');
+                if (gameState.targets[name]) {
+                    gameState.targets[name].trust = parseNumeric(gameState.targets[name].trust || 50, val);
                 }
-            } else if (key.startsWith('affection_') && gameState.targets[key.replace('affection_', '')]) {
-                const t = gameState.targets[key.replace('affection_', '')];
-                const n = parseInt(val);
-                if (!isNaN(n)) {
-                    t.affection = (val.startsWith('+')||val.startsWith('-')) ? Math.max(0, Math.min(100, t.affection + n)) : Math.max(0, Math.min(100, n));
+            }
+            // ★ 新增：alertness_xxx → 攻略对象警惕值
+            else if (key.startsWith('alertness_')) {
+                const name = key.replace('alertness_', '');
+                if (gameState.targets[name]) {
+                    gameState.targets[name].alertness = parseNumeric(gameState.targets[name].alertness || 20, val);
                 }
-            } else if (key.startsWith('possessiveness_') && gameState.targets[key.replace('possessiveness_', '')]) {
-                gameState.targets[key.replace('possessiveness_', '')].possessiveness = val;
+            }
+            else if (key.startsWith('affection_')) {
+                const name = key.replace('affection_', '');
+                if (gameState.targets[name]) {
+                    gameState.targets[name].affection = parseNumeric(gameState.targets[name].affection || 0, val);
+                }
+            }
+            else if (key.startsWith('possessiveness_')) {
+                const name = key.replace('possessiveness_', '');
+                if (gameState.targets[name]) {
+                    gameState.targets[name].possessiveness = val;
+                }
             }
         });
     }
-renderGameUI(narrative, choices);
-updatePhoneBadge();
-// ★ 向手机iframe同步游戏时间
-syncTimeToPhone();
+
+    // ★ 新增：随机事件追踪 — Day变化时检测叙事长度判断是否触发了随机事件
+    if (narrative && narrative.length > 800) {
+        gameState.lastRandomEventRound = gameState.round;
+    }
+    renderGameUI(narrative, choices);
+    updatePhoneBadge();
+    // ★ 向手机iframe同步游戏时间
+    syncTimeToPhone();
 }
 
 // ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
@@ -645,18 +751,20 @@ function mergeIntoPhoneStore(pd) {
         if (!chat.chatId) return;
         let c = store.wechat.chats.find(x => x.id === chat.chatId);
         if (!c) {
-            c = { id: chat.chatId, name: chat.chatName || chat.chatId,
-                  avatar: (chat.chatName||chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg:'', time:'刚刚' };
+            c = {
+                id: chat.chatId, name: chat.chatName || chat.chatId,
+                avatar: (chat.chatName || chat.chatId)[0], color: chat.color || '#4a90d9', lastMsg: '', time: '刚刚'
+            };
             store.wechat.chats.push(c);
         }
         if (!store.wechat.conversations[chat.chatId]) store.wechat.conversations[chat.chatId] = [];
-        (chat.messages||[]).forEach(m => {
+        (chat.messages || []).forEach(m => {
             // ★ 微信消息去重：跟整段历史比对，防止AI重复推送叠加
             const conv = store.wechat.conversations[chat.chatId];
             const isDup = conv.some(x => x.message === m.message && x.sender === m.sender && x.isSelf === m.isSelf);
             if (!isDup) conv.push(m);
         });
-        const last = (chat.messages||[]).slice(-1)[0];
+        const last = (chat.messages || []).slice(-1)[0];
         if (last) { c.lastMsg = last.message; c.time = '刚刚'; }
     });
     // 微信朋友圈：累加到 moments 数组
@@ -667,7 +775,7 @@ function mergeIntoPhoneStore(pd) {
     });
 
     // 其他平台：直接累加进仓库数组
-    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+    ['weibo', 'douyin', 'redbook', 'bilibili', 'tfamily', 'imessage'].forEach(app => {
 
         (ad[app] || []).forEach(item => {
             // ★ 通用去重：按内容+作者判断
@@ -681,7 +789,7 @@ function mergeIntoPhoneStore(pd) {
             if (!isDup) store[app].unshift(item);
         });
     });
-        (ad.douban || []).forEach(p => { const g=p.groupId||'art'; (store.douban[g]=store.douban[g]||[]).unshift(p); });
+    (ad.douban || []).forEach(p => { const g = p.groupId || 'art'; (store.douban[g] = store.douban[g] || []).unshift(p); });
 
     // ★ 存储裁剪：每个 App 保留最近 N 条，防止 phoneStore 无限膨胀
     trimPhoneStore(store);
@@ -707,7 +815,7 @@ function trimPhoneStore(store) {
     }
 
     // 各平台 feed 裁剪
-    ['weibo','douyin','redbook','bilibili','tfamily','imessage'].forEach(app => {
+    ['weibo', 'douyin', 'redbook', 'bilibili', 'tfamily', 'imessage'].forEach(app => {
         if (Array.isArray(store[app]) && store[app].length > MAX_ITEMS) {
             store[app] = store[app].slice(0, MAX_ITEMS);
         }
@@ -737,20 +845,20 @@ function pushStoreToPhone() {
 
 function renderGameUI(narrative, choices) {
     document.getElementById('game-round').textContent = '第' + gameState.round + '回合';
-// ★ 显示完整日历日期，如 "2026年6月28日 周六 · 上午"
-// ★ 简短时间格式，避免手机上换行
-var displayHour = timeOfDayToHour(gameState.timeOfDay);
-document.getElementById('game-time').textContent = gameState.month + '/' + gameState.date + ' ' + gameState.weekday + ' · ' + (displayHour < 10 ? '0' : '') + displayHour + ':00';
+    // ★ 显示完整日历日期，如 "2026年6月28日 周六 · 上午"
+    // ★ 简短时间格式，避免手机上换行
+    var displayHour = timeOfDayToHour(gameState.timeOfDay);
+    document.getElementById('game-time').textContent = gameState.month + '/' + gameState.date + ' ' + gameState.weekday + ' · ' + (displayHour < 10 ? '0' : '') + displayHour + ':00';
     document.getElementById('st-location').textContent = gameState.location;
-    
+
     let repLevel = '隐形';
-    if(gameState.reputation>15) repLevel='被留意'; if(gameState.reputation>30) repLevel='小范围';
-    if(gameState.reputation>50) repLevel='圈内知名'; if(gameState.reputation>70) repLevel='高危';
-    if(gameState.reputation>85) repLevel='爆炸';
+    if (gameState.reputation > 15) repLevel = '被留意'; if (gameState.reputation > 30) repLevel = '小范围';
+    if (gameState.reputation > 50) repLevel = '圈内知名'; if (gameState.reputation > 70) repLevel = '高危';
+    if (gameState.reputation > 85) repLevel = '爆炸';
     document.getElementById('st-reputation').textContent = `${repLevel}（${gameState.reputation}）`;
 
     const affEl = document.getElementById('st-affections');
-    if(affEl) {
+    if (affEl) {
         affEl.innerHTML = '';
         Object.keys(gameState.targets).forEach(name => {
             const t = gameState.targets[name];
@@ -758,14 +866,14 @@ document.getElementById('game-time').textContent = gameState.month + '/' + gameS
         });
     }
 
-        document.getElementById('game-narrative').innerHTML = narrative
+    document.getElementById('game-narrative').innerHTML = narrative
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/\n/g, '<br>');
 
 
-        const choicesEl = document.getElementById('game-choices');
+    const choicesEl = document.getElementById('game-choices');
     choicesEl.innerHTML = '';
     if (choices.length > 0) {
         choices.forEach(c => {
@@ -775,11 +883,11 @@ document.getElementById('game-time').textContent = gameState.month + '/' + gameS
             choicesEl.appendChild(btn);
         });
         // 🌟 第4个固定按钮：自由行动
-        const freeBtn = document.createElement('button'); 
+        const freeBtn = document.createElement('button');
         freeBtn.className = 'choice-btn';
         freeBtn.innerHTML = `<span class="choice-label"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;"><path d="M4 20l4-1 11-11a2 2 0 0 0-3-3L5 16l-1 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span> 以上都不选，我要自己来`;
-        freeBtn.onclick = () => { 
-            document.getElementById('game-input').focus(); 
+        freeBtn.onclick = () => {
+            document.getElementById('game-input').focus();
             document.getElementById('game-input').placeholder = '输入你想做的事...';
         };
         choicesEl.appendChild(freeBtn);
@@ -789,11 +897,11 @@ document.getElementById('game-time').textContent = gameState.month + '/' + gameS
         btn.onclick = () => sendContinue();
         choicesEl.appendChild(btn);
     }
-        document.getElementById('game-scroll').scrollTop = 0;
+    document.getElementById('game-scroll').scrollTop = 0;
 
-// 🌟 游戏开始后显示底部三Tab导航栏
-const tabbar = document.getElementById('bottom-tabbar');
-if (tabbar) tabbar.style.display = 'flex';
+    // 🌟 游戏开始后显示底部三Tab导航栏
+    const tabbar = document.getElementById('bottom-tabbar');
+    if (tabbar) tabbar.style.display = 'flex';
 }
 
 function setLoading(show) {
@@ -807,16 +915,16 @@ function setLoading(show) {
 
 function updatePhoneBadge() {
     const badge = document.getElementById('phone-badge');
-    if(badge) {
+    if (badge) {
         badge.textContent = gameState.phoneBadge;
-        if(gameState.phoneBadge > 0) badge.classList.add('show');
+        if (gameState.phoneBadge > 0) badge.classList.add('show');
         else badge.classList.remove('show');
     }
 }
 
 function showToast(msg) {
     const t = document.getElementById('toast');
-    if(!t) return alert(msg);
+    if (!t) return alert(msg);
     t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2000);
 }
@@ -829,15 +937,15 @@ window.addEventListener('message', async (e) => {
     if (!e.data) return;
     const iframe = document.getElementById('phone-iframe');
 
-        if (e.data.type === 'PHONE_READY') {
+    if (e.data.type === 'PHONE_READY') {
         if (iframe && iframe.contentWindow) {
             iframe.contentWindow.postMessage({ type: 'PHONE_INIT', playerName: (gameState && gameState.playerName) || '玩家' }, '*');
         }
         _flushPhoneMessages(iframe);
         return;
     }
-    
-        if (e.data.type === 'PHONE_CLOSE') {
+
+    if (e.data.type === 'PHONE_CLOSE') {
         // 手机已改为常驻 Tab，关闭即切回剧情 Tab（无 phone-overlay）
         if (typeof switchTab === 'function') switchTab('story');
         document.body.style.overflow = "";
@@ -859,21 +967,21 @@ window.addEventListener('message', async (e) => {
 async function handlePhoneInteract(data) {
     if (!apiConfig) return;
     const iframe = document.getElementById('phone-iframe');
-    
+
     // ----------------------------------------------------
     // 路由 1：处理微信实时聊天
     // ----------------------------------------------------
     if (data.action === 'wechat_reply') {
-    const store = ensurePhoneStore();
-    const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
-    // ① 玩家这条回复永久存入仓库（红包/转账已在手机端push卡片，跳过文字版）
-if (!data.skipPush) {
-    conv.push({ isSelf: true, sender: '我', message: data.userMessage });
-}
+        const store = ensurePhoneStore();
+        const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
+        // ① 玩家这条回复永久存入仓库（红包/转账已在手机端push卡片，跳过文字版）
+        if (!data.skipPush) {
+            conv.push({ isSelf: true, sender: '我', message: data.userMessage });
+        }
 
         // [fix] 带入最近5条聊天上下文，让AI知道前因后果（含红包/转账）
         const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
-        const contextLines = recentConv.map(function(m) {
+        const contextLines = recentConv.map(function (m) {
             if (m.type === 'time' || m.type === 'sys') return '';
             var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
             var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
@@ -881,39 +989,41 @@ if (!data.skipPush) {
         }).filter(l => l).join('\n');
 
         const messages = [
-            { role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+            {
+                role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
 【格式铁律】只输出纯文字对话，禁止任何动作描写、旁白、括号注释。禁止出现：(xxx)、（xxx）、*xxx*、【xxx】、「xxx」、双引号包裹的动作。回复必须像真人发微信一样，只有文字内容。
-最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。` },
+最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。`
+            },
             { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成"${data.chatName}"的自然回复。` }
         ];
 
-    try {
-        const raw = await callAI(messages, null, 300);
-        // ② 抽出数值变动并写回全局数值仓库（数值Tab会实时刷新）
-        const affM = raw.match(/###affection_(.+?):([+-]?\d+)###/);
-        if (affM && gameState.targets[affM[1]]) {
-            const t = gameState.targets[affM[1]];
-            t.affection = Math.max(0, Math.min(100, t.affection + parseInt(affM[2])));
-        }
-// ★ 正则清洗：去除AI可能生成的动作描写（括号/星号/书名号动作）
-let cleaned = raw.replace(/###.*?###/g, '');
-cleaned = cleaned.replace(/[\(（][\s\S]*?[\)）]/g, '');   // 去掉(动作)和（动作）
-cleaned = cleaned.replace(/\*[^*]+\*/g, '');              // 去掉*动作*
-cleaned = cleaned.replace(/【[^】]*】/g, '');              // 去掉【动作】
-cleaned = cleaned.replace(/「[^」]*」/g, '');              // 去掉「动作」
-const replies = cleaned.split('\n').filter(l => l.trim());
+        try {
+            const raw = await callAI(messages, null, 300);
+            // ② 抽出数值变动并写回全局数值仓库（数值Tab会实时刷新）
+            const affM = raw.match(/###affection_(.+?):([+-]?\d+)###/);
+            if (affM && gameState.targets[affM[1]]) {
+                const t = gameState.targets[affM[1]];
+                t.affection = Math.max(0, Math.min(100, t.affection + parseInt(affM[2])));
+            }
+            // ★ 正则清洗：去除AI可能生成的动作描写（括号/星号/书名号动作）
+            let cleaned = raw.replace(/###.*?###/g, '');
+            cleaned = cleaned.replace(/[\(（][\s\S]*?[\)）]/g, '');   // 去掉(动作)和（动作）
+            cleaned = cleaned.replace(/\*[^*]+\*/g, '');              // 去掉*动作*
+            cleaned = cleaned.replace(/【[^】]*】/g, '');              // 去掉【动作】
+            cleaned = cleaned.replace(/「[^」]*」/g, '');              // 去掉「动作」
+            const replies = cleaned.split('\n').filter(l => l.trim());
 
-        // ③ NPC回复永久入库
-        replies.forEach(t => conv.push({ isSelf:false, sender:data.chatName, color:'#4a90d9', message:t }));
-        const c = store.wechat.chats.find(x => x.id === data.chatId);
-        if (c) { c.lastMsg = replies.slice(-1)[0] || ''; c.time = '刚刚'; }
-        // ④ 同步给手机UI渲染 + 刷新数值Tab
-        iframe.contentWindow.postMessage({ type:'PHONE_REPLY', chatId:data.chatId, chatName:data.chatName, replies }, '*');
-        if (typeof renderValuesTab === 'function') renderValuesTab();
-        autoSave();
-    } catch(e) { console.error("微信回复生成失败:", e); }
-}
+            // ③ NPC回复永久入库
+            replies.forEach(t => conv.push({ isSelf: false, sender: data.chatName, color: '#4a90d9', message: t }));
+            const c = store.wechat.chats.find(x => x.id === data.chatId);
+            if (c) { c.lastMsg = replies.slice(-1)[0] || ''; c.time = '刚刚'; }
+            // ④ 同步给手机UI渲染 + 刷新数值Tab
+            iframe.contentWindow.postMessage({ type: 'PHONE_REPLY', chatId: data.chatId, chatName: data.chatName, replies }, '*');
+            if (typeof renderValuesTab === 'function') renderValuesTab();
+            autoSave();
+        } catch (e) { console.error("微信回复生成失败:", e); }
+    }
 
     // ----------------------------------------------------
     // 路由 1.5：处理玩家在手机端发布微博后同步回 phoneStore
@@ -933,7 +1043,7 @@ const replies = cleaned.split('\n').filter(l => l.trim());
 
         // 1. 获取当前游戏里涉及的爱豆名单（为了精准提取黑料）
         const targetIdols = Object.keys(gameState.targets);
-        
+
         // 2. 提取当前发生的剧情（拿最后 3 条历史记录让 AI 知道现在发生了什么）
         const currentEvent = gameState.history.slice(-3).map(h => h.content).join(' ');
 
@@ -945,7 +1055,7 @@ const replies = cleaned.split('\n').filter(l => l.trim());
             console.warn("未找到 LoreDB，请确保引入了 db_knowledge.js");
         }
 
-               // 4. 定义各平台所需的数据结构要求 (匹配我们重制的手机 UI)
+        // 4. 定义各平台所需的数据结构要求 (匹配我们重制的手机 UI)
         const appFormatRequirements = {
             weibo: `生成 5-8 条微博帖子。必须输出严格的 JSON 数组：[{"author":"博主名(用饭圈自然ID)","time":"刚刚","device":"iPhone 15 Pro","content":"正文，带有#话题#","likes":2341,"comments":432,"shares":120}]`,
             douyin: `生成 3 个抖音视频数据。必须输出严格的 JSON 数组：[{"author":"账号名","desc":"视频文案带#话题#","likes":"52.3w","comments":"8.4w","shares":"2.1w","stars":"1.2w","danmaku":["弹幕1","弹幕2","弹幕3"]}]`,
@@ -974,7 +1084,7 @@ ${loreContext}
         try {
             // 调用 AI，这里可以要求更高的 token 长度保证 JSON 完整性
             const result = await callAI([
-                { role: 'system', content: '你是专业的数据构造引擎，只输出合法的 JSON 数组，禁止任何寒暄与多余符号。' }, 
+                { role: 'system', content: '你是专业的数据构造引擎，只输出合法的 JSON 数组，禁止任何寒暄与多余符号。' },
                 { role: 'user', content: finalPrompt }
             ], null, 2500);
 
@@ -984,16 +1094,16 @@ ${loreContext}
             if (jsonMatch) jsonStr = jsonMatch[0];
 
             const payloadData = JSON.parse(jsonStr);
-            
+
             // 7. 将 AI 完美编造的数据发给手机 UI 进行精美渲染！
-            iframe.contentWindow.postMessage({ 
-                type: 'PHONE_APP_DATA', 
-                app: data.app, 
-                payload: payloadData 
+            iframe.contentWindow.postMessage({
+                type: 'PHONE_APP_DATA',
+                app: data.app,
+                payload: payloadData
             }, '*');
 
-        } catch(e) { 
-            console.error(`[${data.app}] App 数据生成或解析失败:`, e); 
+        } catch (e) {
+            console.error(`[${data.app}] App 数据生成或解析失败:`, e);
             // 如果报错（比如超时），给手机一个空数组兜底，解除 loading 状态
             iframe.contentWindow.postMessage({ type: 'PHONE_APP_DATA', app: data.app, payload: [] }, '*');
         }
@@ -1032,7 +1142,7 @@ function switchTab(tab) {
     const topbar = document.querySelector('.game-topbar');
     if (topbar) topbar.style.display = tab === 'story' ? '' : 'none';
 
-        if (tab === 'phone') {
+    if (tab === 'phone') {
         const iframe = document.getElementById('phone-iframe');
         if (iframe) {
             if (!iframe.src || !iframe.src.includes('phone.html')) {
@@ -1044,13 +1154,13 @@ function switchTab(tab) {
             if (iframe.contentWindow && iframe.contentWindow.document && iframe.contentWindow.document.readyState === 'complete') {
                 pushStoreToPhone();
                 setTimeout(() => {
-                    if (iframe.contentWindow) iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
+                    if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
                 }, 150);
             } else {
-                iframe.onload = function() {
+                iframe.onload = function () {
                     pushStoreToPhone();
                     setTimeout(() => {
-                        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type:'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
+                        if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'PHONE_RESTORE', app: gameState.lastPhoneApp || 'wechat' }, '*');
                     }, 150);
                 };
             }
@@ -1062,8 +1172,8 @@ function switchTab(tab) {
 
 // 数值Tab渲染（读取同一个 gameState，实时刷新）
 function renderValuesTab() {
-    const el = document.getElementById('values-wrap'); if(!el) return;
-let html = `<div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>我的属性</div>
+    const el = document.getElementById('values-wrap'); if (!el) return;
+    let html = `<div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>我的属性</div>
       <div class="v-row">魅力 ${gameState.values.charm}</div>
       <div class="v-row">情商 ${gameState.values.eq}</div>
       <div class="v-row">人脉 ${gameState.values.connections}</div>
@@ -1117,7 +1227,7 @@ function toggleTag(el) {
 // ══════════════════════════════════════
 // 游戏日历日期工具函数
 // ══════════════════════════════════════
-const WEEKDAYS_GAME = ['周日','周一','周二','周三','周四','周五','周六'];
+const WEEKDAYS_GAME = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 // 前进一天日历日期（处理月/年进位和星期）
 function advanceGameDate() {
@@ -1141,7 +1251,7 @@ function daysInMonthGame(year, month) {
         const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
         return leap ? 29 : 28;
     }
-    return [31,28,31,30,31,30,31,31,30,31,30,31][month - 1];
+    return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
 }
 
 // 时段→小时映射

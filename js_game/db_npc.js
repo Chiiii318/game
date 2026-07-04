@@ -9,11 +9,11 @@ const NPC_DB = {
         color: "#4a90d9"               // 如果没找到图片，默认显示的背景颜色
     },
     "马嘉祺": {
-        avatar: "img/mjq.jpg",         
+        avatar: "img/mjq.jpg",
         color: "#6c5ce7"
     },
     "丁程鑫": {
-        avatar: "img/dcx.jpg",         
+        avatar: "img/dcx.jpg",
         color: "#ff7675"
     },
     "刘耀文": {
@@ -32,7 +32,7 @@ const NPC_DB = {
         avatar: "img/hjl.jpg",
         color: "#0984e3"
     },
-    
+
     // === 三代 ===
     "朱志鑫": {
         avatar: "img/zzx.jpg",

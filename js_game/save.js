@@ -58,7 +58,7 @@ function deleteSave(slot) {
 function renderSaveSlots() {
     const autoData = localStorage.getItem('saosao_auto_save');
     const autoSlot = document.getElementById('auto-save-slot');
-    if(autoSlot) {
+    if (autoSlot) {
         if (autoData) {
             const parsed = JSON.parse(autoData);
             const time = new Date(parsed.timestamp).toLocaleString('zh-CN');
@@ -70,7 +70,7 @@ function renderSaveSlots() {
     }
 
     const container = document.getElementById('manual-save-slots');
-    if(!container) return;
+    if (!container) return;
     container.innerHTML = '';
     for (let i = 1; i <= 5; i++) {
         const data = localStorage.getItem('saosao_save_' + i);
@@ -111,10 +111,10 @@ function importSave(event) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-        if (data.auto) {
-    const val = typeof data.auto === 'string' ? data.auto : JSON.stringify(data.auto);
-    localStorage.setItem('saosao_auto_save', val);
-}
+            if (data.auto) {
+                const val = typeof data.auto === 'string' ? data.auto : JSON.stringify(data.auto);
+                localStorage.setItem('saosao_auto_save', val);
+            }
             for (let i = 1; i <= 5; i++) {
                 if (data['slot_' + i]) localStorage.setItem('saosao_save_' + i, data['slot_' + i]);
             }
@@ -131,15 +131,31 @@ function importSave(event) {
 
 
 function migrateSave(gs) {
-    if (!gs.phoneStore) gs.phoneStore = { wechat:{ chats:[], conversations:{}, moments:[] }, weibo:[], douban:{}, douyin:[], redbook:[], bilibili:[], tfamily:[], imessage:[] };
+    if (!gs.phoneStore) gs.phoneStore = { wechat: { chats: [], conversations: {}, moments: [] }, weibo: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: [] };
     if (!gs.currentTab) gs.currentTab = 'story';
     if (!gs.lastPhoneApp) gs.lastPhoneApp = 'wechat';
-    if (!gs.values) gs.values = { charm:50, eq:50, connections:30, energy:100, energyMax:100 };
+    if (!gs.values) gs.values = { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 };
     if (!gs.phoneBadge && gs.phoneBadge !== 0) gs.phoneBadge = 0;
     // ★ 游戏时间系统兜底：旧存档无日历字段时补默认值
     if (!gs.year) gs.year = 2026;
     if (!gs.month) gs.month = 6;
     if (!gs.date) gs.date = 28;
     if (!gs.weekday) gs.weekday = '周六';
+    // ★ 新增：玩家属性兜底（旧存档可能values对象存在但缺少某些key）
+    if (!gs.values.charm) gs.values.charm = 50;
+    if (!gs.values.eq) gs.values.eq = 50;
+    if (!gs.values.connections) gs.values.connections = 30;
+    if (!gs.values.energy) gs.values.energy = 100;
+    if (!gs.values.energyMax) gs.values.energyMax = 100;
+    // ★ 新增：时间块系统兜底
+    if (!gs.timeBlock) gs.timeBlock = 'morning';
+    if (!gs.todayDialogCount) gs.todayDialogCount = 1;
+    // ★ 新增：随机事件追踪兜底
+    if (!gs.lastRandomEventRound && gs.lastRandomEventRound !== 0) gs.lastRandomEventRound = 0;
+    // ★ 新增：攻略对象 trust / alertness 兜底
+    Object.keys(gs.targets || {}).forEach(name => {
+        if (gs.targets[name].trust === undefined) gs.targets[name].trust = 50;
+        if (gs.targets[name].alertness === undefined) gs.targets[name].alertness = 20;
+    });
 }
 
