@@ -659,9 +659,11 @@ if (diff > 0) {
 
     // 解析全平台手机数据 (JSON格式提取)
     // ★ 修复：读档时 skipPhone=true 跳过，避免对已入库的老数据重复解析报错
-    const pMatch = !skipPhone && response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
-    if (pMatch) {
-        try {
+const pMatch = !skipPhone && response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+if (pMatch) {
+    console.log('[PHONE_DATA 原始内容]', pMatch[1].trim().substring(0, 500)); // ★ 调试日志
+    try {
+
             const rawJson = pMatch[1].trim()
                 .replace(/^```json?\s*/i, '').replace(/\s*```$/, '')  // 去掉markdown代码块
                 .replace(/,\s*([}\]])/g, '$1')                        // 去掉尾部逗号
@@ -682,9 +684,15 @@ if (diff > 0) {
             if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v || 0));
             gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
             pushStoreToPhone();
-        } catch (e) { console.error('手机数据解析失败', e); }
+    } catch (e) {
+        console.error('手机数据解析失败', e);
     }
-    const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
+} else if (!skipPhone) {
+    console.log('[PHONE_DATA 未检测到] AI输出末尾200字：', response.slice(-200)); // ★ 调试日志
+}
+
+const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
+
     if (dMatch) {
         dMatch[1].trim().split('\n').forEach(line => {
             const m = line.match(/^([^：:]+)[：:]\s*(.+)$/);
