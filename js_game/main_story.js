@@ -65,7 +65,7 @@ function buildSystemPrompt() {
 本日已进行对话轮次：${gameState.todayDialogCount || 1}
 ${randomEventHint}
 地点：${gameState.location}
-舆论值：${gameState.reputation}/100
+舆论值：${gameState.reputation}/100${gameState.reputationEvents && gameState.reputationEvents.length > 0 ? '（近期关联：' + [...new Set(gameState.reputationEvents.slice(-5).map(e => e.target).filter(t => t))].join('、') + '）' : ''}
 玩家属性：魅力${gameState.values.charm} / 情商${gameState.values.eq} / 人脉${gameState.values.connections} / 精力${gameState.values.energy}/${gameState.values.energyMax}
 
 【玩家角色卡】：\n${gameState.playerCard}
@@ -75,6 +75,9 @@ ${randomEventHint}
 【攻略对象状态】：\n${targetStatus}
 
 【叙事偏好】：${gameState.narrativePref}
+
+【跳天指令处理规则】：
+当玩家输入"【跳过X天】"时，你在 ---STATUS--- 中直接输出 time: Day${gameState.day}+X对应的天数 · 上午。前端会自动推进日历。叙事正文用80-150字摘要概括跳过的日子。
 
 ⚠️ 【本局专属世界线机制（极度机密，绝不直接告诉玩家，仅用于暗中驱动剧情）】⚠️
 ${gameState.customModules || "无特殊暗线"}
@@ -308,9 +311,12 @@ async function startGame() {
         round: 1,
         day: 1,
         timeOfDay: '上午',
-        timeBlock: 'morning', // ★ 新增：时间块系统（morning/afternoon/evening）
-        todayDialogCount: 1,  // ★ 新增：当前游戏日内已进行的对话轮次
-        lastRandomEventRound: 0, // ★ 新增：上次触发随机事件的回合数
+        timeBlock: 'morning',
+        todayDialogCount: 1,
+        lastRandomEventRound: 0,
+        endingTriggered: false,        // ★ 结局是否已触发（防重复弹窗）
+        reputationEvents: [],          // ★ 舆论事件记录 [{round, target, delta}]
+        staleRoundsCount: 0,           // ★ 连续无升温回合计数（用于结局判定）
         // ★ 游戏时间系统：完整日历日期
         year: parseInt(document.getElementById('char-year') ? document.getElementById('char-year').value : '2026') || 2026,
         month: 6,
@@ -531,6 +537,16 @@ async function sendToAI(userText) {
     // 玩家发出的文字，先存入历史记录
     gameState.history.push({ role: 'user', content: userText });
 
+    // ★ 跳天指令预处理：提取跳过天数，让AI知道目标Day
+    const skipMatch = userText.match(/【跳过(\d+)天】/);
+    if (skipMatch) {
+        const skipDays = Math.min(parseInt(skipMatch[1]), 7); // 最多跳7天
+        const targetDay = gameState.day + skipDays;
+        // 在本次请求中追加提示，让AI直接输出正确的Day
+        gameState.history[gameState.history.length - 1].content +=
+            `\n[系统提示：请在STATUS中输出 time: Day${targetDay} · 上午，叙事用80-150字摘要]`;
+    }
+
     const messages = [{ role: 'system', content: buildSystemPrompt() }];
     // 控制历史记录长度，防止越来越卡
     const recentHistory = gameState.history.slice(-15);
@@ -685,7 +701,29 @@ if (diff > 0) {
             };
 
             if (key === 'reputation') {
+                const oldRep = gameState.reputation;
                 gameState.reputation = parseNumeric(gameState.reputation, val);
+                const delta = gameState.reputation - oldRep;
+                // ★ 舆论变动时记录关联对象（从同回合的affection变动推断）
+                if (delta !== 0) {
+                    // 关联对象默认取本轮有affection变动的第一个目标
+                    let relatedTarget = '';
+                    dMatch[1].trim().split('\n').forEach(l => {
+                        const am = l.match(/^affection_([^：:]+)/);
+                        if (am && !relatedTarget) relatedTarget = am[1].trim();
+                    });
+                    gameState.reputationEvents = gameState.reputationEvents || [];
+                    gameState.reputationEvents.push({
+                        round: gameState.round,
+                        day: gameState.day,
+                        target: relatedTarget,
+                        delta: delta
+                    });
+                    // 保留最近20条，防止无限膨胀
+                    if (gameState.reputationEvents.length > 20) {
+                        gameState.reputationEvents = gameState.reputationEvents.slice(-20);
+                    }
+                }
             }
             // ★ 新增：玩家属性 charm / eq / connections / energy
             else if (['charm', 'eq', 'connections', 'energy'].includes(key)) {
@@ -724,10 +762,25 @@ if (diff > 0) {
     if (narrative && narrative.length > 800) {
         gameState.lastRandomEventRound = gameState.round;
     }
+
+    // ★ 新增：无升温回合追踪（用于结局判定）
+    const hasAffectionGain = dMatch && dMatch[1].split('\n').some(line => {
+        const am = line.match(/^affection_[^：:]+[：:]\s*\+(\d+)/);
+        return am && parseInt(am[1]) > 0;
+    });
+    if (hasAffectionGain) {
+        gameState.staleRoundsCount = 0;
+    } else {
+        gameState.staleRoundsCount = (gameState.staleRoundsCount || 0) + 1;
+    }
+
     renderGameUI(narrative, choices);
     updatePhoneBadge();
     // ★ 向手机iframe同步游戏时间
     syncTimeToPhone();
+
+    // ★ 新增：结局检测
+    checkEnding();
 }
 
 // ════ 全局手机数据仓库（顶层函数，供 parseAndRender 与 handlePhoneInteract 共用）════
@@ -740,6 +793,104 @@ function ensurePhoneStore() {
         };
     }
     return gameState.phoneStore;
+}
+
+// ══════════════════════════════════════
+// 结局检测系统
+// ══════════════════════════════════════
+function checkEnding() {
+    if (!gameState || gameState.endingTriggered) return;
+
+    let endingType = '';
+    let endingTitle = '';
+    let endingDesc = '';
+
+    const targets = gameState.targets;
+    const targetNames = Object.keys(targets);
+
+    // ① 舆论崩塌：reputation >= 86
+    if (gameState.reputation >= 86) {
+        endingType = 'reputation_collapse';
+        endingTitle = '💀 全网曝光';
+        endingDesc = '你的身份和关系被全网挂上热搜，舆论彻底失控。公司已经无法再保你了。';
+    }
+
+    // ② 关系终结：所有攻略对象好感 < 20 且连续10回合无升温
+    if (!endingType) {
+        const allLow = targetNames.every(n => targets[n].affection < 20);
+        if (allLow && (gameState.staleRoundsCount || 0) >= 10) {
+            endingType = 'all_cold';
+            endingTitle = '💔 遗憾离场';
+            endingDesc = '所有人都渐渐与你疏远了。没有戏剧性的决裂，只是不再有任何人主动找你。';
+        }
+    }
+
+    // ③ 成功结局：任一攻略对象好感 >= 80 且维持 30 回合以上
+    if (!endingType) {
+        const hasStableRelation = targetNames.some(n => {
+            const t = targets[n];
+            // 简化判定：好感>=80 且当前回合数>=30（代表至少经过了30回合的游戏）
+            return t.affection >= 80 && gameState.round >= 30;
+        });
+        if (hasStableRelation) {
+            endingType = 'success';
+            endingTitle = '🔒 地下恋人';
+            endingDesc = '你们的关系在秘密中稳固了下来。虽然见不得光，但每一次偷来的时间都真实得不像话。';
+        }
+    }
+
+    // ④ 自然淡出：游戏超过60天（约2个月模拟时间）且无人好感>=50
+    if (!endingType) {
+        if (gameState.day >= 60 && targetNames.every(n => targets[n].affection < 50)) {
+            endingType = 'fadeout';
+            endingTitle = '🌱 普通人的青春';
+            endingDesc = '两个月过去了。你和那些闪闪发光的人擦肩而过，最终回到了自己的生活轨道上。';
+        }
+    }
+
+    if (!endingType) return;
+
+    // 触发结局弹窗
+    gameState.endingTriggered = true;
+    showEndingModal(endingType, endingTitle, endingDesc);
+}
+
+function showEndingModal(type, title, desc) {
+    // 如果已有弹窗则不重复创建
+    if (document.getElementById('ending-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'ending-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    modal.innerHTML = `
+        <div style="background:#1a1a2e;border-radius:16px;padding:32px 24px;max-width:360px;width:100%;text-align:center;color:#eee;">
+            <div style="font-size:48px;margin-bottom:16px;">${title.split(' ')[0]}</div>
+            <h2 style="font-size:20px;margin:0 0 12px;color:#fff;">${title}</h2>
+            <p style="font-size:14px;line-height:1.6;color:#aaa;margin:0 0 24px;">${desc}</p>
+            <p style="font-size:12px;color:#666;margin:0 0 20px;">第${gameState.round}回合 · Day${gameState.day}</p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button onclick="dismissEnding(false)" style="padding:10px 20px;border-radius:8px;border:1px solid #444;background:transparent;color:#aaa;font-size:14px;cursor:pointer;">继续游玩</button>
+                <button onclick="dismissEnding(true)" style="padding:10px 20px;border-radius:8px;border:none;background:#4a90d9;color:#fff;font-size:14px;cursor:pointer;">结束游戏</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function dismissEnding(goHome) {
+    const modal = document.getElementById('ending-modal');
+    if (modal) modal.remove();
+    if (goHome) {
+        navTo('page-home');
+    } else {
+        // 玩家选择继续，重置标记允许后续再次触发（如果条件持续满足则不再弹）
+        // 这里不重置 endingTriggered，避免每回合重复弹窗
+        // 只有舆论崩塌是真正的硬结局，其他可以继续
+        if (gameState.reputation >= 86) {
+            // 舆论崩塌继续玩的话，给一次机会降下来
+            gameState.endingTriggered = false;
+        }
+    }
 }
 
 // 把一回合的 PHONE_DATA 增量合并进永久仓库（不再清空，只累加）

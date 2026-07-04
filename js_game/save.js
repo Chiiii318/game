@@ -141,7 +141,7 @@ function migrateSave(gs) {
     if (!gs.month) gs.month = 6;
     if (!gs.date) gs.date = 28;
     if (!gs.weekday) gs.weekday = '周六';
-    // ★ 新增：玩家属性兜底（旧存档可能values对象存在但缺少某些key）
+    // ★ 新增：玩家属性兜底
     if (!gs.values.charm) gs.values.charm = 50;
     if (!gs.values.eq) gs.values.eq = 50;
     if (!gs.values.connections) gs.values.connections = 30;
@@ -152,6 +152,10 @@ function migrateSave(gs) {
     if (!gs.todayDialogCount) gs.todayDialogCount = 1;
     // ★ 新增：随机事件追踪兜底
     if (!gs.lastRandomEventRound && gs.lastRandomEventRound !== 0) gs.lastRandomEventRound = 0;
+    // ★ 新增：结局系统兜底
+    if (gs.endingTriggered === undefined) gs.endingTriggered = false;
+    if (!gs.reputationEvents) gs.reputationEvents = [];
+    if (gs.staleRoundsCount === undefined) gs.staleRoundsCount = 0;
     // ★ 新增：攻略对象 trust / alertness 兜底
     Object.keys(gs.targets || {}).forEach(name => {
         if (gs.targets[name].trust === undefined) gs.targets[name].trust = 50;
