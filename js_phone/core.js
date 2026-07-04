@@ -100,7 +100,135 @@ function showScreen(id) {
     if (el) el.classList.add('active');
     else console.warn('showScreen: 找不到屏幕 ' + id);
 }
-function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
+function unlockPhone() {
+    // 检查是否有待恢复的App（从剧情Tab切回时触发）
+    if (window._restoreApp) {
+        var app = window._restoreApp;
+        window._restoreApp = null; // 清空，防止重复触发
+        openApp(app);
+    } else {
+        showScreen('screen-home');
+        setStatusbarMode('light');
+        setHomeBarMode('hidden');
+    }
+}
+// ═══ 锁屏通知卡片生成（从本地数据源提取最新消息）═══
+function updateLockNotifications() {
+    var container = document.querySelector('.lock-notifications');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var notifications = [];
+
+    // 1. 微信：取有最近消息的聊天（lastMsg 非空）
+    if (typeof wxData !== 'undefined' && wxData.chats) {
+        wxData.chats.forEach(function(chat) {
+            if (!chat.lastMsg || chat.lastMsg === '（还没有聊天记录）') return;
+            notifications.push({
+                app: '微信',
+                icon: '微信',
+                color: '#07c160',
+                title: chat.name,
+                preview: chat.lastMsg,
+                targetApp: 'wechat'
+            });
+        });
+    }
+
+    // 2. 微博：取最新一条
+    if (typeof wbData !== 'undefined' && wbData.feed && wbData.feed.length > 0) {
+        var latest = wbData.feed[0];
+        notifications.push({
+            app: '微博',
+            icon: '微博',
+            color: '#ff5722',
+            title: latest.author || latest.name || '微博',
+            preview: (latest.content || latest.text || '').substring(0, 40),
+            targetApp: 'weibo'
+        });
+    }
+
+    // 3. 豆瓣：取最新一条帖子
+    if (typeof dbData !== 'undefined' && dbData.posts) {
+        var dbLatest = null;
+        Object.keys(dbData.posts).forEach(function(g) {
+            if (dbData.posts[g] && dbData.posts[g].length > 0 && !dbLatest) {
+                dbLatest = dbData.posts[g][0];
+            }
+        });
+        if (dbLatest) {
+            notifications.push({
+                app: '豆瓣',
+                icon: '豆瓣',
+                color: '#2fbd59',
+                title: dbLatest.group || '豆瓣小组',
+                preview: (dbLatest.title || '').substring(0, 40),
+                targetApp: 'douban'
+            });
+        }
+    }
+
+    // 4. 小红书
+    if (typeof xhsData !== 'undefined' && xhsData.notes && xhsData.notes.length > 0) {
+        var xhsLatest = xhsData.notes[0];
+        notifications.push({
+            app: '小红书',
+            icon: '小红书',
+            color: '#fe2c55',
+            title: xhsLatest.author || xhsLatest.name || '小红书',
+            preview: (xhsLatest.title || xhsLatest.content || '').substring(0, 40),
+            targetApp: 'redbook'
+        });
+    }
+
+    // 5. iMessage
+    if (typeof imData !== 'undefined' && imData.chats && imData.chats.length > 0) {
+        var imLatest = imData.chats.find(function(c) { return c.lastMsg; });
+        if (imLatest) {
+            notifications.push({
+                app: '信息',
+                icon: '信息',
+                color: '#34c759',
+                title: imLatest.name,
+                preview: (imLatest.lastMsg || '').substring(0, 40),
+                targetApp: 'imessage'
+            });
+        }
+    }
+
+    // 最多显示5条通知
+    notifications = notifications.slice(0, 5);
+
+    // 渲染通知卡片
+    notifications.forEach(function(n) {
+        var div = document.createElement('div');
+        div.className = 'lock-notif';
+        div.setAttribute('data-app', n.targetApp);
+        div.innerHTML = '<span class="lock-notif-icon" style="background:' + n.color + '">' + n.icon[0] + '</span>' +
+            '<div class="lock-notif-body">' +
+            '<div class="lock-notif-header"><span class="lock-notif-app">' + n.app + '</span><span class="lock-notif-time">刚刚</span></div>' +
+            '<div class="lock-notif-title">' + n.title + '</div>' +
+            '<div class="lock-notif-text">' + n.preview + '</div>' +
+            '</div>';
+        // 点击通知卡片 → 直接解锁并跳到对应App
+        div.addEventListener('click', function() {
+            window._restoreApp = n.targetApp;
+            // 触发解锁动画
+            var lockEl = document.getElementById('screen-lock');
+            if (lockEl) {
+                lockEl.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                lockEl.style.transform = 'translateY(-100%)';
+                lockEl.style.opacity = '0';
+                setTimeout(function() {
+                    unlockPhone();
+                    lockEl.style = '';
+                }, 300);
+            }
+        });
+        container.appendChild(div);
+    });
+}
+
 // 锁屏上滑解锁手势
 (function(){
     var startY = 0, lockEl = null;
@@ -134,6 +262,7 @@ function unlockPhone() { showScreen('screen-home'); setStatusbarMode('light'); s
         lockEl = null;
     }, {passive:true});
 })();
+
 function goDesktop() { showScreen('screen-home'); setStatusbarMode('light'); setHomeBarMode('hidden'); }
 
 // ═══ 桌面横向翻页手势 ═══
@@ -311,15 +440,25 @@ window.addEventListener('message', function(e) {
     if (typeof tfData !== 'undefined')  tfData.feed  = s.tfamily || [];
     if (typeof imData !== 'undefined')  imData.chats = s.imessage|| [];
     if (typeof dbData !== 'undefined' && s.douban) dbData.posts = Object.assign({art:[],observe:[],emoji:[]}, s.douban);
-    phoneInitialized = true;
-    refreshCurrentView();
-    return;
-}
+        phoneInitialized = true;
+        refreshCurrentView();
+        // ★ 同步刷新锁屏通知（如果当前在锁屏则实时更新）
+        var lockActive = document.getElementById('screen-lock');
+        if (lockActive && lockActive.classList.contains('active')) {
+            updateLockNotifications();
+        }
+        return;
+    }
 
-// ★ 切回手机Tab时，自动停留在上次打开的App（Tab记忆逻辑）
+// ★ 切回手机Tab时，先显示锁屏（带通知），解锁后恢复上次的App
 if (e.data.type === 'PHONE_RESTORE') {
     var app = e.data.app || 'wechat';
-    if (typeof openApp === 'function') { unlockPhone(); openApp(app); }
+    window._restoreApp = app; // 存储待恢复的App
+    updateLockNotifications();  // 刷新锁屏通知卡片
+    updateTimeDisplay();        // 确保锁屏时间正确
+    showScreen('screen-lock');  // 显示锁屏
+    setStatusbarMode('light');
+    setHomeBarMode('hidden');
     return;
 }
 
