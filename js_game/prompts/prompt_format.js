@@ -136,7 +136,86 @@ D. 自由输入
 ⚠️ 铁律：每回合必须输出恰好4个选项（A/B/C/D，D固定为"自由输入"），绝对不可省略！如果你不知道给什么选项，就根据当前场景给出"离开/留下/观察"之类的通用选项。只有当叙事是一段纯过渡描写（如睡觉、坐车、时间跳转）才允许不给选项。
 
 ---PHONE_DATA---
-（合法JSON对象，描述本回合手机端新增内容）
+（合法JSON对象，描述本回合手机端所有新增内容。前端手机系统直接解析此JSON渲染界面。）
+
+【PHONE_DATA 铁律】
+1. 叙事联动强制同步：NARRATIVE正文中出现的任何手机相关描述（"他发了条微信""超话有新帖""朋友圈刷到一条""收到短信"等），必须100%在PHONE_DATA中以对应JSON字段同步输出。叙事里提了但PHONE_DATA里没有 = 格式违规，等同系统崩溃。
+2. 禁止空对象：PHONE_DATA 绝对不允许输出 {}。每回合最少包含1个平台的内容。
+3. 背景噪音机制：即使叙事正文未提及手机内容，AI也必须根据当前剧情时间线自动生成1-3条合理的社交平台背景噪音（粉丝日常讨论、超话闲聊、朋友圈动态、微博热搜相关等），维持手机系统活跃感。
+4. chatId稳定性：同一个NPC的wechat chatId必须全程一致（格式如 wx_xiaoyuan、wx_mama），否则前端会创建重复对话。
+5. badges必填：只要有任何平台产生新消息，badges字段必须同步标注对应app的未读数。
+
+【PHONE_DATA JSON结构规范】
+
+{
+  "app_data": {
+    "wechat": [
+      {
+        "chatId": "wx_拼音ID（同一NPC始终同一ID）",
+        "chatName": "显示名称",
+        "color": "#十六进制颜色",
+        "isGroup": false,
+        "messages": [
+          {"isSelf": false, "sender": "发送者名字", "message": "消息内容"},
+          {"isSelf": true, "message": "玩家发出的消息（如果叙事中玩家回复了）"}
+        ]
+      }
+    ],
+    "wechat_moments": [
+      {
+        "name": "发布者名字",
+        "avatar": "首字母",
+        "color": "#颜色",
+        "text": "朋友圈正文",
+        "time": "刚刚/X分钟前",
+        "likes": ["点赞人1", "点赞人2"],
+        "comments": [{"name": "评论人", "text": "评论内容"}]
+      }
+    ],
+    "weibo": [
+      {
+        "author": "博主名/超话名",
+        "content": "正文（可带#话题标签#和@提及）",
+        "time": "刚刚/X分钟前",
+        "likes": 数字,
+        "comments": 数字,
+        "shares": 数字
+      }
+    ],
+    "douban": [
+      {
+        "groupId": "art 或 observe 或 emoji",
+        "title": "帖子标题",
+        "author": "发帖人昵称",
+        "content": "帖子正文",
+        "likes": 数字,
+        "comments": [{"name": "评论人昵称", "text": "评论内容"}]
+      }
+    ],
+    "imessage": [
+      {
+        "id": "im_拼音ID",
+        "name": "发送者名字",
+        "color": "#颜色",
+        "msgs": [{"isSelf": false, "text": "消息内容"}]
+      }
+    ]
+  },
+  "badges": {"wechat": 2, "weibo": 1}
+}
+
+【字段说明】
+- app_data 下只放本回合有新内容的平台，没有新内容的平台不放（但至少要有一个平台）
+- wechat 群聊需设 "isGroup": true 并加 "members": ["成员1", "成员2", ...] 字段
+- badges 统计本回合各平台新增消息总条数，无新消息的平台不写
+- 所有字符串值必须用双引号，数字不加引号，确保JSON.parse()可直接解析
+- 时间字段用相对时间（"刚刚""3分钟前""1小时前"），不用绝对时间戳
+
+【常见错误示例（禁止）】
+❌ NARRATIVE写"宋亚轩发了条微信说晚安" → PHONE_DATA里wechat为空
+❌ PHONE_DATA输出 {}
+❌ 同一个NPC上一轮chatId是"wx_syx"，这一轮变成"wx_songyaxuan"
+❌ JSON中使用单引号、尾逗号、注释
 
 ---DATA_UPDATE---
 （每回合必须输出此区块！根据本回合剧情中玩家的表现和互动，给出数值变动。）
@@ -157,7 +236,7 @@ possessiveness_角色名: 中
 
 ⚠️⚠️⚠️ 最终检查（输出前必须自验）：
 □ 是否有 ---CHOICES--- 且包含A/B/C三个选项？（除非是纯过渡段落）
-□ 是否有 ---DATA_UPDATE--- 且至少包含 affection_xxx 一行？
+□ 是否有 ---PHONE_DATA--- 且 JSON 合法、非空对象？叙事中提到的手机内容是否全部同步到JSON中？（空对象{}=格式错误！）
 □ 是否有 ---PHONE_DATA--- 且 JSON 合法？（无内容时输出空对象 {}）
 如果缺少任何一个，立即补上再输出！
 `;
