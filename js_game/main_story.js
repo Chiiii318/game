@@ -1,6 +1,23 @@
 // ══════════════════════════════════════
 // 基础 UI 导航功能
 // ══════════════════════════════════════
+// ★ 每次发送给AI时追加的格式强制提醒（不存入history，仅发送时拼接）
+const FORMAT_REMINDER = `
+[系统格式提醒] 你的输出必须严格包含以下区块标记，缺任何一个=输出无效：
+---NARRATIVE---
+（叙事正文）
+---STATUS---
+location: 地点
+time: DayX · 时段
+---CHOICES---
+A/B/C/D选项
+---PHONE_DATA---
+{"app_data":{...},"badges":{...}}
+必须把叙事中提到的所有手机消息写进PHONE_DATA的JSON里！
+---DATA_UPDATE---
+数值变动
+---END---`;
+
 function navTo(pageId) {
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
     const target = document.getElementById(pageId);
@@ -474,10 +491,11 @@ async function sendFirstRound() {
     setLoading(true);
 
     try {
-        const messages = [
-            { role: 'system', content: buildSystemPrompt() },
-            { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' }
-        ];
+const messages = [
+    { role: 'system', content: buildSystemPrompt() },
+    { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' + FORMAT_REMINDER }
+];
+
 
         gameState.history.push({ role: 'user', content: '[游戏开始]' });
 
@@ -547,10 +565,7 @@ async function sendToAI(userText) {
             `\n[系统提示：请在STATUS中输出 time: Day${targetDay} · 上午，叙事用80-150字摘要]`;
     }
 
-    const messages = [{ role: 'system', content: buildSystemPrompt() }];
-    // 控制历史记录长度，防止越来越卡
-    const recentHistory = gameState.history.slice(-15);
-    recentHistory.forEach(h => messages.push({ role: h.role, content: h.content }));
+// 控制历史记录长度，防止越来越卡
 
     const narrativeEl = document.getElementById('game-narrative');
     narrativeEl.textContent = '...'; // 清空并准备接收文字
