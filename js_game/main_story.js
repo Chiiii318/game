@@ -565,13 +565,21 @@ async function sendToAI(userText) {
             `\n[系统提示：请在STATUS中输出 time: Day${targetDay} · 上午，叙事用80-150字摘要]`;
     }
 
-// 控制历史记录长度，防止越来越卡
+    // 构建请求消息（系统prompt + 历史记录裁剪至最近20条）
+    const trimmedHistory = gameState.history.slice(-20);
+    const messages = [
+        { role: 'system', content: buildSystemPrompt() },
+        ...trimmedHistory
+    ];
+    // 末尾追加格式强制提醒
+    if (messages.length > 1) {
+        messages[messages.length - 1].content += FORMAT_REMINDER;
+    }
 
     const narrativeEl = document.getElementById('game-narrative');
-    narrativeEl.textContent = '...'; // 清空并准备接收文字
+    narrativeEl.textContent = '';
 
     try {
-        // 核心修改：调用流式函数 callAIStream
         await callAIStream(messages, {
             onChunk: (chunk, fullText) => {
                 let displayStr = fullText;

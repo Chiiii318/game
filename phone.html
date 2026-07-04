@@ -91,10 +91,9 @@
     <!-- 依次引入提取出的各个模块 -->
     <script src="lib/js/weui.min.js"></script>
     <script>if(typeof weui==='undefined'){console.warn('weui 加载失败，微信弹窗功能将降级');}</script>
-
+    <script src="js_game/db_npc.js"></script>
     <script src="js_phone/core.js"></script>
     <script>if(typeof IC==='undefined'){document.body.innerHTML='<div style="color:#fff;padding:40px;text-align:center;">核心模块加载失败，请检查 js_phone/core.js 是否存在</div>';}</script>
-
     <script src="js_phone/app_wechat.js"></script>
     <script src="js_phone/app_weibo.js"></script>
     <script src="js_phone/app_douyin.js"></script>

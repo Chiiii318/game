@@ -369,18 +369,10 @@ if (appCache[appId] === 'loading') return;
 appCache[appId] = 'loading';
 window.parent.postMessage({ type: 'PHONE_INTERACT', action: 'load_app', app: appId }, '*');
 
-// 15秒超时兜底：如果AI未返回数据，解除loading状态并提示
+// 15秒超时兜底：AI未返回数据则解除loading允许重试
 setTimeout(function(){
     if (appCache[appId] === 'loading') {
-        appCache[appId] = null; // 重置，允许用户下拉重试
-        refreshCurrentView();
-    }
-}, 15000);
-
-// 15秒超时兜底：如果AI未返回数据，解除loading状态并刷新视图
-setTimeout(function(){
-    if (appCache[appId] === 'loading') {
-        appCache[appId] = null; // 重置，允许用户再次触发请求
+        appCache[appId] = null;
         refreshCurrentView();
     }
 }, 15000);
@@ -804,6 +796,8 @@ function refreshCurrentView() {
     else if (id === 'screen-redbook' && typeof xhsNav === 'function') xhsNav(xhsData.currentView);
     else if (id === 'screen-douyin' && typeof dyNav === 'function') dyNav(dyData.currentView);
     else if (id === 'screen-bilibili' && typeof biliNav === 'function') biliNav(biliData.currentView);
+    else if (id === 'screen-tfamily' && typeof tfNav === 'function') tfNav(tfData.currentView || 'home');
+    else if (id === 'screen-imessage' && typeof imNav === 'function') imNav(imData.currentView || 'list');
 }
 
 // ═══ 统一的"返回上一级"逻辑 ═══

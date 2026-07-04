@@ -8,6 +8,14 @@ var _avatarColors = ['#4a90d9','#f5a623','#7c5ce7','#07c160','#e08080','#5b8def'
 function getAvatarColor(name) {
     if (!name) return '#4a90d9';
     if (_avatarColorCache[name]) return _avatarColorCache[name];
+    // 优先从NPC数据库取预设颜色
+    if (typeof getNpcColor === 'function') {
+        var npcColor = getNpcColor(name);
+        if (npcColor && npcColor !== '#b2bec3') {
+            _avatarColorCache[name] = npcColor;
+            return npcColor;
+        }
+    }
     var hash = 0;
     for (var i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
