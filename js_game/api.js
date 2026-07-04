@@ -1,12 +1,8 @@
-// ══════════════════════════════════════
-// AI API 通信模块（流式优化 + RAG联网检索版）
-// ══════════════════════════════════════
-
 window.apiConfig = null;
 window.isRequesting = false;
-window._currentAbort = null; 
+window._currentAbort = null;
 
-// 读取本地存的 API 配置
+// 读取本地API配置
 function loadApiConfig() {
     const saved = localStorage.getItem('saosao_api_config');
     if (saved) {
@@ -14,25 +10,19 @@ function loadApiConfig() {
         if (document.getElementById('api-url')) document.getElementById('api-url').value = window.apiConfig.url || '';
         if (document.getElementById('api-key')) document.getElementById('api-key').value = window.apiConfig.key || '';
         if (document.getElementById('api-model')) document.getElementById('api-model').value = window.apiConfig.model || '';
-        
-        // 读取流式开关
         if (document.getElementById('api-stream-toggle') && window.apiConfig.stream !== undefined) {
             document.getElementById('api-stream-toggle').checked = window.apiConfig.stream;
         }
-        
-        // 读取联网搜索开关和密钥
         if (document.getElementById('api-search-toggle') && window.apiConfig.enableSearch !== undefined) {
             document.getElementById('api-search-toggle').checked = window.apiConfig.enableSearch;
         }
         if (document.getElementById('search-key')) document.getElementById('search-key').value = window.apiConfig.searchKey || '';
-
         document.querySelectorAll('#api-type-group .radio-item').forEach(i => {
             i.classList.toggle('active', i.dataset.val === window.apiConfig.type);
         });
     }
 }
 
-// 选择 API 类型
 function selectApiType(el) {
     document.querySelectorAll('#api-type-group .radio-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
@@ -43,7 +33,6 @@ function getApiType() {
     return active ? active.dataset.val : 'openai';
 }
 
-// 保存配置
 function saveApiConfig() {
     const config = {
         type: getApiType(),
@@ -52,7 +41,6 @@ function saveApiConfig() {
         model: document.getElementById('api-model').value.trim(),
         temperature: 0.85,
         maxTokens: 4096,
-        // 保存流式和联网配置
         stream: document.getElementById('api-stream-toggle') ? document.getElementById('api-stream-toggle').checked : true,
         enableSearch: document.getElementById('api-search-toggle') ? document.getElementById('api-search-toggle').checked : false,
         searchKey: document.getElementById('search-key') ? document.getElementById('search-key').value.trim() : ''
@@ -66,7 +54,6 @@ function saveApiConfig() {
     if (typeof showToast === 'function') showToast('配置已保存');
 }
 
-// 中断当前请求
 function abortCurrentRequest() {
     if (window._currentAbort) {
         window._currentAbort.abort();
@@ -75,12 +62,10 @@ function abortCurrentRequest() {
     window.isRequesting = false;
 }
 
-// ──────────────────────────────────────
-// 独立功能：执行 Tavily 联网搜索 (供外部按需调用)
-// ──────────────────────────────────────
+// Tavily 联网搜索
 async function performWebSearch(query) {
     const cfg = window.apiConfig;
-    if (!cfg || !cfg.enableSearch || !cfg.searchKey) return null; // 没开启或没填密钥则不搜索
+    if (!cfg || !cfg.enableSearch || !cfg.searchKey) return null;
 
     try {
         const resp = await fetch('https://api.tavily.com/search', {
@@ -90,13 +75,13 @@ async function performWebSearch(query) {
                 api_key: cfg.searchKey,
                 query: query,
                 search_depth: 'basic',
-                max_results: 3 // 只取前3条结果，节省大模型 Token
+                max_results: 3
             })
         });
 
         if (!resp.ok) throw new Error('Search failed');
         const data = await resp.json();
-        
+
         if (data.results && data.results.length > 0) {
             let searchContext = "\n【系统附加：最新真实网络资讯】\n";
             data.results.forEach((r, i) => {
@@ -106,14 +91,11 @@ async function performWebSearch(query) {
         }
         return null;
     } catch (e) {
-        console.error("联网搜索失败:", e);
-        return null; // 失败就算了，不影响游戏主流程
+        return null;
     }
 }
 
-// ──────────────────────────────────────
-// 核心调用函数（非流式，用于短请求）
-// ──────────────────────────────────────
+// 非流式调用（用于短请求）
 async function callAI(messages, configOverride, maxTokensOverride) {
     const cfg = configOverride || window.apiConfig;
     if (!cfg) throw new Error('未配置API');
@@ -153,9 +135,7 @@ async function callAI(messages, configOverride, maxTokensOverride) {
     }
 }
 
-// ──────────────────────────────────────
-// 流式调用函数（用于游戏剧情生成）
-// ──────────────────────────────────────
+// 流式调用（用于游戏剧情生成）
 async function callAIStream(messages, { onChunk, onDone, onError, configOverride, maxTokensOverride } = {}) {
     const cfg = configOverride || window.apiConfig;
     if (!cfg) {
@@ -165,7 +145,7 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
 
     const maxTk = maxTokensOverride || cfg.maxTokens || 4096;
 
-    // 🌟 如果玩家关闭了流式，直接退回到普通等待模式
+    // 非流式模式直接退回普通调用
     if (cfg.stream === false) {
         try {
             const fullText = await callAI(messages, cfg, maxTk);
@@ -199,7 +179,6 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
         body = { model: cfg.model, messages: messages, temperature: cfg.temperature, max_tokens: maxTk, stream: true };
     }
 
-    // ★★★ 修复：把 fullText 声明提到 try 外面，防止 catch 里访问不到 ★★★
     let fullText = '';
 
     try {
@@ -225,7 +204,7 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop(); 
+            buffer = lines.pop();
 
             for (const line of lines) {
                 const trimmed = line.trim();
@@ -261,11 +240,11 @@ async function callAIStream(messages, { onChunk, onDone, onError, configOverride
     }
 }
 
-// 测试连接按钮
+// 测试连接
 async function testApi() {
     const resultEl = document.getElementById('test-result');
     resultEl.className = 'test-result';
-    
+
     const config = {
         type: getApiType(),
         url: document.getElementById('api-url').value.trim(),

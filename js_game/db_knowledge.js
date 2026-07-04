@@ -94,22 +94,22 @@ window.LoreDB = {
             blackMaterial: "拿石头砸老奶奶事件、骑摩托撞人，被黑粉称为法制咖、暴力倾向。"
         },
         "张峻豪": {
-            generation: "三代(登陆少年)",
+            generation: "三代(solo)",
             aliases: "ZJH、顺。嘲称：大鼻",
             blackMaterial: "网恋事件、私联粉丝、青春叛逆。"
         },
         "余宇涵": {
-            generation: "三代(登陆少年)",
+            generation: "三代(solo)",
             aliases: "YYH、🐟。嘲称：捞鱼",
             blackMaterial: "辱女事件(玩师兄黑梗、嘴同事被爆)，事后发声明称被'异地登陆'，常被用'异地登陆'梗嘲讽。"
         },
         "张子墨": {
-            generation: "三代(其余)",
+            generation: "三代(TF_ING)",
             aliases: "ZZM。嘲称：了黑",
             blackMaterial: "歌曲抄袭事件，被嘲才华含水量高。"
         },
         "穆祉丞": {
-            generation: "三代(其余)",
+            generation: "三代(TF_ING)",
             aliases: "MZC。嘲称：木墩、墩子",
             blackMaterial: "被嘲五短身材；音乐节'橙粉色举起来其他颜色idont care'亲手发卖拆CP事件。"
         },

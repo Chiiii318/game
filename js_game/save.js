@@ -1,7 +1,3 @@
-// ══════════════════════════════════════
-// 存读档管理系统
-// ══════════════════════════════════════
-
 function autoSave() {
     if (!gameState) return;
     const saveData = {
@@ -33,11 +29,10 @@ function loadSave(slot) {
         migrateSave(gameState);
         loadApiConfig();
         navTo('page-game');
-        // ★ 修复：读档时只渲染叙事/选项/状态，跳过 PHONE_DATA 重解析
-        // （phoneStore 已在 gameState 中完整保存，重新解析会触发 JSON 报错且产生重复数据）
+        // 读档时只渲染叙事/选项/状态，跳过 PHONE_DATA 重解析
         const lastAI = [...gameState.history].reverse().find(h => h.role === 'assistant');
         if (lastAI) {
-            parseAndRender(lastAI.content, true); // ← 传入 skipPhone 标志
+            parseAndRender(lastAI.content, true);
         } else {
             document.getElementById('game-narrative').textContent = '存档已加载，等待继续...';
             document.getElementById('bottom-tabbar').style.display = 'flex';
@@ -62,7 +57,6 @@ function renderSaveSlots() {
         if (autoData) {
             const parsed = JSON.parse(autoData);
             const time = new Date(parsed.timestamp).toLocaleString('zh-CN');
-            // 替换为 svg
             autoSlot.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>自动存档</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div>`;
         } else {
             autoSlot.innerHTML = '<div class="save-slot-empty">暂无自动存档</div>';
@@ -79,10 +73,8 @@ function renderSaveSlots() {
         if (data) {
             const parsed = JSON.parse(data);
             const time = new Date(parsed.timestamp).toLocaleString('zh-CN');
-            // 替换为 svg
             div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>槽位 ${i}</span><span class="save-slot-time">${time}</span></div><div class="save-slot-preview">${parsed.preview || '...'}</div><div class="save-actions"><button class="btn btn-secondary" onclick="loadSave(${i})">读取</button><button class="btn btn-secondary" onclick="manualSave(${i})">覆盖</button><button class="btn btn-danger" onclick="deleteSave(${i})">删除</button></div>`;
         } else {
-            // 替换为 svg
             div.innerHTML = `<div class="save-slot-header"><span class="save-slot-name"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="vertical-align:-2px;margin-right:4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>槽位 ${i}</span><span class="save-slot-time">空</span></div><div class="save-slot-empty">空存档</div><div class="save-actions"><button class="btn btn-primary" onclick="manualSave(${i})">保存到此</button></div>`;
         }
         container.appendChild(div);
@@ -129,37 +121,30 @@ function importSave(event) {
     event.target.value = '';
 }
 
-
+// 旧存档兼容迁移
 function migrateSave(gs) {
     if (!gs.phoneStore) gs.phoneStore = { wechat: { chats: [], conversations: {}, moments: [] }, weibo: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: [] };
     if (!gs.currentTab) gs.currentTab = 'story';
     if (!gs.lastPhoneApp) gs.lastPhoneApp = 'wechat';
     if (!gs.values) gs.values = { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 };
     if (!gs.phoneBadge && gs.phoneBadge !== 0) gs.phoneBadge = 0;
-    // ★ 游戏时间系统兜底：旧存档无日历字段时补默认值
     if (!gs.year) gs.year = 2026;
     if (!gs.month) gs.month = 6;
     if (!gs.date) gs.date = 28;
     if (!gs.weekday) gs.weekday = '周六';
-    // ★ 新增：玩家属性兜底
     if (!gs.values.charm) gs.values.charm = 50;
     if (!gs.values.eq) gs.values.eq = 50;
     if (!gs.values.connections) gs.values.connections = 30;
     if (!gs.values.energy) gs.values.energy = 100;
     if (!gs.values.energyMax) gs.values.energyMax = 100;
-    // ★ 新增：时间块系统兜底
     if (!gs.timeBlock) gs.timeBlock = 'morning';
     if (!gs.todayDialogCount) gs.todayDialogCount = 1;
-    // ★ 新增：随机事件追踪兜底
     if (!gs.lastRandomEventRound && gs.lastRandomEventRound !== 0) gs.lastRandomEventRound = 0;
-    // ★ 新增：结局系统兜底
     if (gs.endingTriggered === undefined) gs.endingTriggered = false;
     if (!gs.reputationEvents) gs.reputationEvents = [];
     if (gs.staleRoundsCount === undefined) gs.staleRoundsCount = 0;
-    // ★ 新增：攻略对象 trust / alertness 兜底
     Object.keys(gs.targets || {}).forEach(name => {
         if (gs.targets[name].trust === undefined) gs.targets[name].trust = 50;
         if (gs.targets[name].alertness === undefined) gs.targets[name].alertness = 20;
     });
 }
-
