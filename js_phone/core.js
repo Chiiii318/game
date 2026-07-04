@@ -760,30 +760,32 @@ else if (app === 'imessage' && typeof imData !== 'undefined') {
     }
 
 
-           if (e.data.type === 'PHONE_REPLY') {
-        if(typeof wxData !== 'undefined' && wxData.conversations[e.data.chatId]) {
-            var msgs = wxData.conversations[e.data.chatId];
-            // 移除 typing 气泡
-            for (var i = msgs.length - 1; i >= 0; i--) {
-                if (msgs[i].type === 'typing') { msgs.splice(i, 1); break; }
-            }
-                e.data.replies.forEach(function(t, i) {
-                    // ★ 第一条回复前插入时间标记
-                    if (i === 0) {
-                        var lastMsg = msgs[msgs.length - 1];
-                        if (!lastMsg || lastMsg.type === 'time' || !lastMsg._ts || (Date.now() - (lastMsg._ts||0) > 300000)) {
-                            msgs.push({type:'time', text: formatGameTime()});
-                        }
-                    }
-                    msgs.push({isSelf:false, sender:e.data.chatName, color:'#4a90d9', message:t, _ts:Date.now()});
-                });
-
-            // 更新聊天列表最后一条
-            var chat = wxData.chats.find(function(c){ return c.id === e.data.chatId; });
-            if (chat) { chat.lastMsg = e.data.replies[e.data.replies.length-1] || '';chat.time = formatGameTime(); }
-            if(typeof wxNav === 'function') wxNav('conversation', e.data.chatId);
+if (e.data.type === 'PHONE_REPLY') {
+    if(typeof wxData !== 'undefined' && wxData.conversations[e.data.chatId]) {
+        var msgs = wxData.conversations[e.data.chatId];
+        for (var i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].type === 'typing') { msgs.splice(i, 1); break; }
         }
+            e.data.replies.forEach(function(r, i) {
+                if (i === 0) {
+                    var lastMsg = msgs[msgs.length - 1];
+                    if (!lastMsg || lastMsg.type === 'time' || !lastMsg._ts || (Date.now() - (lastMsg._ts||0) > 300000)) {
+                        msgs.push({type:'time', text: formatGameTime()});
+                    }
+                }
+                // 兼容新格式（对象{sender,message}）和旧格式（纯字符串）
+                var sender = (typeof r === 'object') ? r.sender : e.data.chatName;
+                var message = (typeof r === 'object') ? r.message : r;
+                msgs.push({isSelf:false, sender:sender, color:getAvatarColor(sender), message:message, _ts:Date.now()});
+            });
+
+        var chat = wxData.chats.find(function(c){ return c.id === e.data.chatId; });
+        var lastReply = e.data.replies[e.data.replies.length-1];
+        if (chat) { chat.lastMsg = (typeof lastReply === 'object' ? lastReply.message : lastReply) || ''; chat.time = formatGameTime(); }
+        if(typeof wxNav === 'function') wxNav('conversation', e.data.chatId);
     }
+}
+
 });
 
 function refreshCurrentView() {

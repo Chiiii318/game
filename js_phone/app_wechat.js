@@ -26,8 +26,12 @@ function getAvatarColor(name) {
 }
 
 // ★ 转账实名遮掩：李明→(*明)，宋亚轩→(**轩)
+// 转账实名遮掩：只对看起来像真实姓名的（2-4个不重复汉字）做遮掩，其余不显示
 function getNameMask(name) {
-    if (!name || name.length === 0) return '';
+    if (!name || name.length < 2) return '';
+    // 判断是否像真实姓名：2-4个汉字且不全是同一个字
+    var isRealName = /^[\u4e00-\u9fff]{2,4}$/.test(name) && name[0] !== name[1];
+    if (!isRealName) return '';
     var last = name[name.length - 1];
     var stars = '';
     for (var i = 0; i < name.length - 1; i++) stars += '*';
@@ -157,7 +161,10 @@ function chatLongPress(chatId) {
 function renderConversation() {
     var chat = wxData.chats.find(function(c){return c.id===wxData.currentChatId;}) || {name:'未知'};
     var msgs = wxData.conversations[wxData.currentChatId]||[];
-    var name = escapeHtml(chat.name)+(chat.memberCount?'('+chat.memberCount+')':'');
+// 群聊标题格式：群名(实际成员数)
+var memberTotal = chat.memberCount || (chat.members ? chat.members.length : 0);
+var name = escapeHtml(chat.name)+(memberTotal ? '('+memberTotal+')' : '');
+
     var isGroup = chat.isGroup;
 
     var html = msgs.map(function(msg,idx){
@@ -515,7 +522,7 @@ function showTransferModal() {
     h += '<div class="wx-tf-panel__nav-title">转账</div>';
     h += '<div style="width:28px"></div></div>';
     h += '<div class="wx-tf-panel__header"><div class="wx-tf-panel__header-info">';
-    h += '<div class="wx-tf-panel__header-name">转账给 ' + escapeHtml(toName) + ' (' + escapeHtml(nameMask) + ')</div>';
+    h += '<div class="wx-tf-panel__header-name">转账给 ' + escapeHtml(toName) + (nameMask ? ' (' + escapeHtml(nameMask) + ')' : '') + '</div>';
     h += '<div class="wx-tf-panel__header-id">微信号：' + escapeHtml(wxData.currentChatId) + '</div>';
     h += '</div><div class="wx-tf-panel__header-avatar" style="background:' + toColor + '">' + escapeHtml(toName[0]) + '</div></div>';
     h += '<div class="wx-tf-panel__card">';

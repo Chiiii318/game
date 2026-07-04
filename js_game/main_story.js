@@ -1153,32 +1153,47 @@ async function handlePhoneInteract(data) {
     // ----------------------------------------------------
     // 路由 1：处理微信实时聊天
     // ----------------------------------------------------
-    if (data.action === 'wechat_reply') {
-        const store = ensurePhoneStore();
-        const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
-        // ① 玩家这条回复永久存入仓库（红包/转账已在手机端push卡片，跳过文字版）
-        if (!data.skipPush) {
-            conv.push({ isSelf: true, sender: '我', message: data.userMessage });
-        }
+if (data.action === 'wechat_reply') {
+    const store = ensurePhoneStore();
+    const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
+    if (!data.skipPush) {
+        conv.push({ isSelf: true, sender: '我', message: data.userMessage });
+    }
 
-        // [fix] 带入最近5条聊天上下文，让AI知道前因后果（含红包/转账）
-        const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
-        const contextLines = recentConv.map(function (m) {
-            if (m.type === 'time' || m.type === 'sys') return '';
-            var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
-            var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
-            return prefix + '：' + content;
-        }).filter(l => l).join('\n');
+    const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
+    const contextLines = recentConv.map(function (m) {
+        if (m.type === 'time' || m.type === 'sys') return '';
+        var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
+        var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
+        return prefix + '：' + content;
+    }).filter(l => l).join('\n');
 
-        const messages = [
-            {
-                role: 'system', content: `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+    // 检测是否群聊
+    const chatObj = store.wechat.chats.find(x => x.id === data.chatId);
+    const isGroup = chatObj && chatObj.isGroup;
+    const members = (chatObj && chatObj.members) || [];
+
+    let sysPrompt;
+    if (isGroup) {
+        sysPrompt = `你是群聊NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+这是一个群聊"${data.chatName}"，成员有：${members.join('、')}。
+玩家在群里发了消息，请生成1-3个群成员的回复。
+【格式铁律】每条回复必须以"成员名：内容"格式输出，一行一条。禁止动作描写、括号注释。
+例如：
+宋亚轩：哈哈哈哈行
+马嘉祺：别闹了
+最后另起一行输出数值变动（只对攻略对象有效），格式：###affection_角色名:+2###`;
+    } else {
+        sysPrompt = `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
 【格式铁律】只输出纯文字对话，禁止任何动作描写、旁白、括号注释。禁止出现：(xxx)、（xxx）、*xxx*、【xxx】、「xxx」、双引号包裹的动作。回复必须像真人发微信一样，只有文字内容。
-最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。`
-            },
-            { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成"${data.chatName}"的自然回复。` }
-        ];
+最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。`;
+    }
+
+    const messages = [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成回复。` }
+    ];
 
         try {
             const raw = await callAI(messages, null, 300);
@@ -1194,14 +1209,37 @@ async function handlePhoneInteract(data) {
             cleaned = cleaned.replace(/\*[^*]+\*/g, '');              // 去掉*动作*
             cleaned = cleaned.replace(/【[^】]*】/g, '');              // 去掉【动作】
             cleaned = cleaned.replace(/「[^」]*」/g, '');              // 去掉「动作」
-            const replies = cleaned.split('\n').filter(l => l.trim());
+            const replyLines = cleaned.split('\n').filter(l => l.trim());
 
-            // ③ NPC回复永久入库
-            replies.forEach(t => conv.push({ isSelf: false, sender: data.chatName, color: '#4a90d9', message: t }));
+            // ③ NPC回复永久入库（群聊需解析每条的sender）
+            const parsedReplies = [];
+            replyLines.forEach(line => {
+                if (isGroup) {
+                    // 群聊格式："成员名：内容" 或 "成员名: 内容"
+                    const colonIdx = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':');
+                    if (colonIdx > 0 && colonIdx < 8) {
+                        const sender = line.substring(0, colonIdx).trim();
+                        const msg = line.substring(colonIdx + 1).trim();
+                        if (msg) {
+                            conv.push({ isSelf: false, sender: sender, color: getAvatarColor ? getAvatarColor(sender) : '#4a90d9', message: msg });
+                            parsedReplies.push({ sender: sender, message: msg });
+                        }
+                    } else {
+                        // 没有冒号前缀，随机取一个成员
+                        const fallbackSender = members[Math.floor(Math.random() * members.length)] || '群成员';
+                        conv.push({ isSelf: false, sender: fallbackSender, color: '#4a90d9', message: line });
+                        parsedReplies.push({ sender: fallbackSender, message: line });
+                    }
+                } else {
+                    conv.push({ isSelf: false, sender: data.chatName, color: '#4a90d9', message: line });
+                    parsedReplies.push({ sender: data.chatName, message: line });
+                }
+            });
+
             const c = store.wechat.chats.find(x => x.id === data.chatId);
-            if (c) { c.lastMsg = replies.slice(-1)[0] || ''; c.time = '刚刚'; }
-            // ④ 同步给手机UI渲染 + 刷新数值Tab
-            iframe.contentWindow.postMessage({ type: 'PHONE_REPLY', chatId: data.chatId, chatName: data.chatName, replies }, '*');
+            if (c) { c.lastMsg = parsedReplies.length > 0 ? parsedReplies[parsedReplies.length-1].message : ''; c.time = '刚刚'; }
+            // ④ 同步给手机UI渲染（群聊用结构化数据）
+            iframe.contentWindow.postMessage({ type: 'PHONE_REPLY', chatId: data.chatId, chatName: data.chatName, replies: parsedReplies, isGroup: isGroup }, '*');
             if (typeof renderValuesTab === 'function') renderValuesTab();
             autoSave();
         } catch (e) { console.error("微信回复生成失败:", e); }
