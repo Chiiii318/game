@@ -376,11 +376,17 @@ async function startGame() {
     });
 
     // ② 再把已解析出的攻略对象写入微信通讯录，避免开局空白
-    Object.keys(gameState.targets).forEach(name => {
-        const id = 'wx_' + name;
-        gameState.phoneStore.wechat.chats.push({ id, name, avatar: name[0], color: '#4a90d9', lastMsg: '（还没有聊天记录）', time: '' });
+targets.forEach((cardObj, idx) => {
+    const name = Object.keys(gameState.targets)[idx];
+    const rel = cardObj.relationship || '陌生人';
+    const id = 'wx_' + name;
+    // 只有工作关系及以上才预置微信对话
+    const hasWechat = /工作|同事|合作|好友|私交|前任|朋友|熟人|点头/.test(rel);
+    if (hasWechat) {
+        gameState.phoneStore.wechat.chats.push({ id, name, avatar: name[0], color: '#4a90d9', lastMsg: '', time: '' });
         gameState.phoneStore.wechat.conversations[id] = [];
-    });
+    }
+});
 
     // ★ 新游戏：清空手机 iframe 的旧数据
     window._pendingPhoneMessages = [];
