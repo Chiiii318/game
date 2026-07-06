@@ -23,11 +23,14 @@ function navTo(pageId) {
     const target = document.getElementById(pageId);
     if (target) target.classList.add('active');
 
+    // ★ 非游戏页面隐藏底部tabbar
+    const tabbar = document.getElementById('bottom-tabbar');
+    if (tabbar) tabbar.style.display = (pageId === 'page-game') ? 'flex' : 'none';
+
     if (pageId === 'page-save' && typeof renderSaveSlots === 'function') {
         renderSaveSlots();
     }
 }
-
 
 // 从存读档页面返回
 function goBackFromSave() {
