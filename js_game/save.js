@@ -123,7 +123,8 @@ function importSave(event) {
 
 // 旧存档兼容迁移
 function migrateSave(gs) {
-    if (!gs.phoneStore) gs.phoneStore = { wechat: { chats: [], conversations: {}, moments: [] }, weibo: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: [] };
+    if (!gs.phoneStore) gs.phoneStore = { wechat: { chats: [], conversations: {}, moments: [] }, weibo: [], weibo_hotsearch: [], douban: {}, douyin: [], redbook: [], bilibili: [], tfamily: [], imessage: [] };
+    if (gs.phoneStore && !gs.phoneStore.weibo_hotsearch) gs.phoneStore.weibo_hotsearch = [];
     if (!gs.currentTab) gs.currentTab = 'story';
     if (!gs.lastPhoneApp) gs.lastPhoneApp = 'wechat';
     if (!gs.values) gs.values = { charm: 50, eq: 50, connections: 30, energy: 100, energyMax: 100 };

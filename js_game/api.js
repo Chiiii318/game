@@ -6,7 +6,12 @@ window._currentAbort = null;
 function loadApiConfig() {
     const saved = localStorage.getItem('saosao_api_config');
     if (saved) {
-        window.apiConfig = JSON.parse(saved);
+        try {
+            window.apiConfig = JSON.parse(saved);
+        } catch (e) {
+            console.error('API 配置损坏，已忽略', e);
+            return;
+        }
         if (document.getElementById('api-url')) document.getElementById('api-url').value = window.apiConfig.url || '';
         if (document.getElementById('api-key')) document.getElementById('api-key').value = window.apiConfig.key || '';
         if (document.getElementById('api-model')) document.getElementById('api-model').value = window.apiConfig.model || '';

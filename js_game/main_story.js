@@ -566,12 +566,12 @@ async function sendToAI(userText) {
 
     // ★ 跳天指令预处理：提取跳过天数，让AI知道目标Day
     const skipMatch = userText.match(/【跳过(\d+)天】/);
+    let skipHint = '';
     if (skipMatch) {
         const skipDays = Math.min(parseInt(skipMatch[1]), 7); // 最多跳7天
         const targetDay = gameState.day + skipDays;
-        // 在本次请求中追加提示，让AI直接输出正确的Day
-        gameState.history[gameState.history.length - 1].content +=
-            `\n[系统提示：请在STATUS中输出 time: Day${targetDay} · 上午，叙事用80-150字摘要]`;
+        // 只在本次请求拼接，不写回 history
+        skipHint = `\n[系统提示：请在STATUS中输出 time: Day${targetDay} · 上午，叙事用80-150字摘要]`;
     }
 
     // 构建请求消息（系统prompt + 历史记录裁剪至最近20条）
@@ -580,9 +580,10 @@ async function sendToAI(userText) {
         { role: 'system', content: buildSystemPrompt() },
         ...trimmedHistory
     ];
-    // 末尾追加格式强制提醒
+    // 末尾追加格式强制提醒（复制成新对象，不污染 history 原引用）
     if (messages.length > 1) {
-        messages[messages.length - 1].content += FORMAT_REMINDER;
+        const last = messages[messages.length - 1];
+        messages[messages.length - 1] = { ...last, content: last.content + skipHint + FORMAT_REMINDER };
     }
 
     const narrativeEl = document.getElementById('game-narrative');
@@ -767,7 +768,14 @@ function parseAndRender(response, skipPhone) {
             }
             // ★ 新增：玩家属性 charm / eq / connections / energy
             else if (['charm', 'eq', 'connections', 'energy'].includes(key)) {
-                gameState.values[key] = parseNumeric(gameState.values[key] || 50, val);
+                const cur = gameState.values[key] || 50;
+                const n = parseInt(val);
+                if (!isNaN(n)) {
+                    const upper = (key === 'energy') ? (gameState.values.energyMax || 100) : 100;
+                    gameState.values[key] = (val.startsWith('+') || val.startsWith('-'))
+                        ? Math.max(0, Math.min(upper, cur + n))
+                        : Math.max(0, Math.min(upper, n));
+                }
             }
             // ★ 新增：trust_xxx → 攻略对象信任值
             else if (key.startsWith('trust_')) {
@@ -798,8 +806,9 @@ function parseAndRender(response, skipPhone) {
         });
     }
 
-    // ★ 新增：随机事件追踪 — Day变化时检测叙事长度判断是否触发了随机事件
-    if (narrative && narrative.length > 800) {
+    // ★ 随机事件追踪：优先读取 AI 显式标记，回退到字数启发式
+    const explicitRandomEvent = dMatch && /random_event\s*[:：]\s*(true|1|是)/i.test(dMatch[1]);
+    if (explicitRandomEvent || (narrative && narrative.length > 800)) {
         gameState.lastRandomEventRound = gameState.round;
     }
 
@@ -828,13 +837,12 @@ function ensurePhoneStore() {
     if (!gameState.phoneStore) {
         gameState.phoneStore = {
             wechat: { chats: [], conversations: {}, moments: [] },
-            weibo: [], douban: {}, douyin: [], redbook: [],
+            weibo: [], weibo_hotsearch: [], douban: {}, douyin: [], redbook: [],
             bilibili: [], tfamily: [], imessage: []
         };
     }
     return gameState.phoneStore;
 }
-
 // ══════════════════════════════════════
 // 结局检测系统
 // ══════════════════════════════════════
@@ -865,11 +873,10 @@ function checkEnding() {
         }
     }
 
-    // ③ 成功结局：任一攻略对象好感 >= 80 且维持 30 回合以上
+    // ③ 成功结局：任一攻略对象好感 >= 80，且游戏已进行满 30 回合
     if (!endingType) {
         const hasStableRelation = targetNames.some(n => {
             const t = targets[n];
-            // 简化判定：好感>=80 且当前回合数>=30（代表至少经过了30回合的游戏）
             return t.affection >= 80 && gameState.round >= 30;
         });
         if (hasStableRelation) {
@@ -1409,9 +1416,10 @@ function renderValuesTab() {
       <div class="v-row">精力 ${gameState.values.energy}/${gameState.values.energyMax}</div>
       <div class="v-row">舆论 ${gameState.reputation}/100</div>
       <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:4px;"><path d="M12 21s-8-5.5-8-11a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 20 10c0 5.5-8 11-8 11z" fill="#ff6b81" stroke="#ff6b81" stroke-width="1.6" stroke-linejoin="round"/></svg>攻略对象</div>`;
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     Object.keys(gameState.targets).forEach(n => {
         const t = gameState.targets[n];
-        html += `<div class="v-row">${n}：好感${t.affection} / 占有欲${t.possessiveness} / 信任${t.trust} / 警惕${t.alertness}</div>`;
+        html += `<div class="v-row">${esc(n)}：好感${t.affection} / 占有欲${esc(t.possessiveness)} / 信任${t.trust} / 警惕${t.alertness}</div>`;
     });
     el.innerHTML = html;
 }
