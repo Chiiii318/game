@@ -376,17 +376,17 @@ async function startGame() {
     });
 
     // ② 再把已解析出的攻略对象写入微信通讯录，避免开局空白
-targets.forEach((cardObj, idx) => {
-    const name = Object.keys(gameState.targets)[idx];
-    const rel = cardObj.relationship || '陌生人';
-    const id = 'wx_' + name;
-    // 只有工作关系及以上才预置微信对话
-    const hasWechat = /工作|同事|合作|好友|私交|前任|朋友|熟人|点头/.test(rel);
-    if (hasWechat) {
-        gameState.phoneStore.wechat.chats.push({ id, name, avatar: name[0], color: '#4a90d9', lastMsg: '', time: '' });
-        gameState.phoneStore.wechat.conversations[id] = [];
-    }
-});
+    targets.forEach((cardObj, idx) => {
+        const name = Object.keys(gameState.targets)[idx];
+        const rel = cardObj.relationship || '陌生人';
+        const id = 'wx_' + name;
+        // 只有工作关系及以上才预置微信对话
+        const hasWechat = /工作|同事|合作|好友|私交|前任|朋友|熟人|点头/.test(rel);
+        if (hasWechat) {
+            gameState.phoneStore.wechat.chats.push({ id, name, avatar: name[0], color: '#4a90d9', lastMsg: '', time: '' });
+            gameState.phoneStore.wechat.conversations[id] = [];
+        }
+    });
 
     // ★ 新游戏：清空手机 iframe 的旧数据
     window._pendingPhoneMessages = [];
@@ -500,10 +500,10 @@ async function sendFirstRound() {
     setLoading(true);
 
     try {
-const messages = [
-    { role: 'system', content: buildSystemPrompt() },
-    { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' + FORMAT_REMINDER }
-];
+        const messages = [
+            { role: 'system', content: buildSystemPrompt() },
+            { role: 'user', content: '游戏开始。请生成第一回合的开场叙事。' + FORMAT_REMINDER }
+        ];
 
 
         gameState.history.push({ role: 'user', content: '[游戏开始]' });
@@ -656,13 +656,13 @@ function parseAndRender(response, skipPhone) {
             if (dayMatch) {
                 const newDay = parseInt(dayMatch[1]);
                 const diff = newDay - gameState.day;
-if (diff > 0) {
-    gameState.round += diff;
-    for (let i = 0; i < diff; i++) advanceGameDate();
-    gameState.todayDialogCount = 1;
-    // ★ 新的一天精力自动恢复满
-    gameState.values.energy = gameState.values.energyMax || 100;
-} else {
+                if (diff > 0) {
+                    gameState.round += diff;
+                    for (let i = 0; i < diff; i++) advanceGameDate();
+                    gameState.todayDialogCount = 1;
+                    // ★ 新的一天精力自动恢复满
+                    gameState.values.energy = gameState.values.energyMax || 100;
+                } else {
                     // ★ 同一天内：对话轮次+1
                     gameState.todayDialogCount = (gameState.todayDialogCount || 1) + 1;
                 }
@@ -691,10 +691,10 @@ if (diff > 0) {
 
     // 解析全平台手机数据 (JSON格式提取)
     // ★ 修复：读档时 skipPhone=true 跳过，避免对已入库的老数据重复解析报错
-const pMatch = !skipPhone && response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
-if (pMatch) {
-    console.log('[PHONE_DATA 原始内容]', pMatch[1].trim().substring(0, 500)); // ★ 调试日志
-    try {
+    const pMatch = !skipPhone && response.match(/---PHONE_DATA---([\s\S]*?)(?=---DATA_UPDATE---|---END---|$)/);
+    if (pMatch) {
+        console.log('[PHONE_DATA 原始内容]', pMatch[1].trim().substring(0, 500)); // ★ 调试日志
+        try {
 
             const rawJson = pMatch[1].trim()
                 .replace(/^```json?\s*/i, '').replace(/\s*```$/, '')  // 去掉markdown代码块
@@ -716,14 +716,14 @@ if (pMatch) {
             if (newPhoneData.badges) Object.values(newPhoneData.badges).forEach(v => newBadge += (v || 0));
             gameState.phoneBadge = (gameState.phoneBadge || 0) + newBadge;
             pushStoreToPhone();
-    } catch (e) {
-        console.error('手机数据解析失败', e);
+        } catch (e) {
+            console.error('手机数据解析失败', e);
+        }
+    } else if (!skipPhone) {
+        console.log('[PHONE_DATA 未检测到] AI输出末尾200字：', response.slice(-200)); // ★ 调试日志
     }
-} else if (!skipPhone) {
-    console.log('[PHONE_DATA 未检测到] AI输出末尾200字：', response.slice(-200)); // ★ 调试日志
-}
 
-const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
+    const dMatch = response.match(/---DATA_UPDATE---([\s\S]*?)(?=---END---|$)/);
 
     if (dMatch) {
         dMatch[1].trim().split('\n').forEach(line => {
@@ -1162,29 +1162,29 @@ async function handlePhoneInteract(data) {
     // ----------------------------------------------------
     // 路由 1：处理微信实时聊天
     // ----------------------------------------------------
-if (data.action === 'wechat_reply') {
-    const store = ensurePhoneStore();
-    const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
-    if (!data.skipPush) {
-        conv.push({ isSelf: true, sender: '我', message: data.userMessage });
-    }
+    if (data.action === 'wechat_reply') {
+        const store = ensurePhoneStore();
+        const conv = (store.wechat.conversations[data.chatId] = store.wechat.conversations[data.chatId] || []);
+        if (!data.skipPush) {
+            conv.push({ isSelf: true, sender: '我', message: data.userMessage });
+        }
 
-    const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
-    const contextLines = recentConv.map(function (m) {
-        if (m.type === 'time' || m.type === 'sys') return '';
-        var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
-        var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
-        return prefix + '：' + content;
-    }).filter(l => l).join('\n');
+        const recentConv = (store.wechat.conversations[data.chatId] || []).slice(-5);
+        const contextLines = recentConv.map(function (m) {
+            if (m.type === 'time' || m.type === 'sys') return '';
+            var prefix = m.isSelf ? '我' : (m.sender || data.chatName);
+            var content = m.message || m.text || ('[' + (m.type || '消息') + ']');
+            return prefix + '：' + content;
+        }).filter(l => l).join('\n');
 
-    // 检测是否群聊
-    const chatObj = store.wechat.chats.find(x => x.id === data.chatId);
-    const isGroup = chatObj && chatObj.isGroup;
-    const members = (chatObj && chatObj.members) || [];
+        // 检测是否群聊
+        const chatObj = store.wechat.chats.find(x => x.id === data.chatId);
+        const isGroup = chatObj && chatObj.isGroup;
+        const members = (chatObj && chatObj.members) || [];
 
-    let sysPrompt;
-    if (isGroup) {
-        sysPrompt = `你是群聊NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+        let sysPrompt;
+        if (isGroup) {
+            sysPrompt = `你是群聊NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 这是一个群聊"${data.chatName}"，成员有：${members.join('、')}。
 玩家在群里发了消息，请生成1-3个群成员的回复。
 【格式铁律】每条回复必须以"成员名：内容"格式输出，一行一条。禁止动作描写、括号注释。
@@ -1192,17 +1192,17 @@ if (data.action === 'wechat_reply') {
 宋亚轩：哈哈哈哈行
 马嘉祺：别闹了
 最后另起一行输出数值变动（只对攻略对象有效），格式：###affection_角色名:+2###`;
-    } else {
-        sysPrompt = `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
+        } else {
+            sysPrompt = `你是NPC对话生成器。玩家角色：${gameState.playerCard}。当前关系：${JSON.stringify(gameState.targets)}。
 玩家在微信给"${data.chatName}"发消息。先输出该NPC的自然口语回复（可多条，每条换行）。
 【格式铁律】只输出纯文字对话，禁止任何动作描写、旁白、括号注释。禁止出现：(xxx)、（xxx）、*xxx*、【xxx】、「xxx」、双引号包裹的动作。回复必须像真人发微信一样，只有文字内容。
 最后另起一行输出数值变动，格式固定：###affection_${data.chatName}:+2###（好感变动，-5到+5之间，依据玩家这句话讨不讨喜）。`;
-    }
+        }
 
-    const messages = [
-        { role: 'system', content: sysPrompt },
-        { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成回复。` }
-    ];
+        const messages = [
+            { role: 'system', content: sysPrompt },
+            { role: 'user', content: `最近对话记录：\n${contextLines}\n\n请根据以上对话上下文，生成回复。` }
+        ];
 
         try {
             const raw = await callAI(messages, null, 300);
@@ -1246,7 +1246,7 @@ if (data.action === 'wechat_reply') {
             });
 
             const c = store.wechat.chats.find(x => x.id === data.chatId);
-            if (c) { c.lastMsg = parsedReplies.length > 0 ? parsedReplies[parsedReplies.length-1].message : ''; c.time = '刚刚'; }
+            if (c) { c.lastMsg = parsedReplies.length > 0 ? parsedReplies[parsedReplies.length - 1].message : ''; c.time = '刚刚'; }
             // ④ 同步给手机UI渲染（群聊用结构化数据）
             iframe.contentWindow.postMessage({ type: 'PHONE_REPLY', chatId: data.chatId, chatName: data.chatName, replies: parsedReplies, isGroup: isGroup }, '*');
             if (typeof renderValuesTab === 'function') renderValuesTab();

@@ -1,26 +1,45 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-       <title>嫂嫂模拟器 · 手机系统</title>
-       <meta name="theme-color" content="#000">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>嫂嫂模拟器 · 手机系统</title>
+    <meta name="theme-color" content="#000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <!-- 新增：腾讯 WeUI CSS -->
-<link rel="stylesheet" href="lib/css/weui.min.css">
-     <link rel="stylesheet" href="css/phone.css">
+    <link rel="stylesheet" href="lib/css/weui.min.css">
+    <link rel="stylesheet" href="css/phone.css">
 </head>
+
 <body>
     <div class="phone">
         <!-- 状态栏 -->
         <div class="statusbar light" id="statusbar">
             <span class="statusbar-time" id="statusbar-time">14:30</span>
             <div class="statusbar-right">
-                <svg width="18" height="12" viewBox="0 0 18 12"><rect class="sig-fill" x="0.5" y="7.5" width="3" height="4.5" rx="0.7"/><rect class="sig-fill" x="5" y="5" width="3" height="7" rx="0.7"/><rect class="sig-fill" x="9.5" y="2.5" width="3" height="9.5" rx="0.7"/><rect class="sig-fill" x="14" y="0" width="3" height="12" rx="0.7"/></svg>
-                <svg width="17" height="12" viewBox="0 0 17 12"><circle class="wifi-d" cx="8.5" cy="10.5" r="1.3"/><path class="wifi-s" d="M6 8.2a3.5 3.5 0 0 1 5 0" stroke-width="1.5" fill="none" stroke-linecap="round"/><path class="wifi-s" d="M3.8 5.8a6.5 6.5 0 0 1 9.4 0" stroke-width="1.5" fill="none" stroke-linecap="round"/><path class="wifi-s" d="M1.5 3.5a9.8 9.8 0 0 1 14 0" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
-                <svg width="28" height="13" viewBox="0 0 28 13"><rect class="bat-o" x="0.75" y="1.25" width="23" height="10.5" rx="2.8" stroke-width="1"/><rect class="bat-c" x="24.5" y="4" width="2.5" height="5" rx="1.2"/><rect class="bat-l" x="2.25" y="2.75" width="20" height="7.5" rx="1.8" opacity="0.9"/></svg>
+                <svg width="18" height="12" viewBox="0 0 18 12">
+                    <rect class="sig-fill" x="0.5" y="7.5" width="3" height="4.5" rx="0.7" />
+                    <rect class="sig-fill" x="5" y="5" width="3" height="7" rx="0.7" />
+                    <rect class="sig-fill" x="9.5" y="2.5" width="3" height="9.5" rx="0.7" />
+                    <rect class="sig-fill" x="14" y="0" width="3" height="12" rx="0.7" />
+                </svg>
+                <svg width="17" height="12" viewBox="0 0 17 12">
+                    <circle class="wifi-d" cx="8.5" cy="10.5" r="1.3" />
+                    <path class="wifi-s" d="M6 8.2a3.5 3.5 0 0 1 5 0" stroke-width="1.5" fill="none"
+                        stroke-linecap="round" />
+                    <path class="wifi-s" d="M3.8 5.8a6.5 6.5 0 0 1 9.4 0" stroke-width="1.5" fill="none"
+                        stroke-linecap="round" />
+                    <path class="wifi-s" d="M1.5 3.5a9.8 9.8 0 0 1 14 0" stroke-width="1.5" fill="none"
+                        stroke-linecap="round" />
+                </svg>
+                <svg width="28" height="13" viewBox="0 0 28 13">
+                    <rect class="bat-o" x="0.75" y="1.25" width="23" height="10.5" rx="2.8" stroke-width="1" />
+                    <rect class="bat-c" x="24.5" y="4" width="2.5" height="5" rx="1.2" />
+                    <rect class="bat-l" x="2.25" y="2.75" width="20" height="7.5" rx="1.8" opacity="0.9" />
+                </svg>
             </div>
         </div>
         <div class="home-bar light" id="home-bar" onclick="goDesktop()"></div>
@@ -34,45 +53,158 @@
                     <div class="lock-date" id="lock-date">6月28日 周六</div>
                 </div>
                 <div class="lock-notifications" id="lock-notifications"></div>
-<div class="lock-hint">上滑解锁</div>
-</div>
-<!-- 移除全屏onclick层，解锁完全由手势处理 -->
+                <div class="lock-hint">上滑解锁</div>
+            </div>
+            <!-- 移除全屏onclick层，解锁完全由手势处理 -->
         </div>
 
         <!-- 桌面 -->
         <div class="screen" id="screen-home">
             <div class="home-bg"></div>
             <div class="home-content">
-    <div class="home-pages-wrap">
-        <div class="home-pages">
-            <div class="home-page">
-                <div class="home-grid">
-<div class="app-item" role="button" aria-label="打开微信" onclick="openApp('wechat')"><div class="app-icon ic-wx"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M8.5 7C5.5 7 3 9 3 11.5c0 1.4.8 2.6 2 3.4l-.5 2 2.2-1.1c.6.2 1.2.2 1.8.2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M15.5 9c-3.3 0-6 2.2-6 5s2.7 5 6 5c.7 0 1.4-.1 2-.3l2.5 1.3-.6-2.2c1.3-.9 2.1-2.2 2.1-3.8 0-2.8-2.7-5-6-5z" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg></div><div class="app-badge" id="badge-wechat" style="display:none">0</div><span class="app-name">微信</span></div>
-<div class="app-item" role="button" aria-label="打开微博" onclick="openApp('weibo')"><div class="app-icon ic-wb"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#fff" stroke-width="1.4"/><path d="M8 12c1-3 3-4 4-4s3 1 4 4c-1 3-3 4-4 4s-3-1-4-4z" stroke="#fff" stroke-width="1.2"/></svg></div><div class="app-badge" id="badge-weibo" style="display:none">0</div><span class="app-name">微博</span></div>
-<div class="app-item" role="button" aria-label="打开豆瓣" onclick="openApp('douban')"><div class="app-icon ic-db"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="3" rx="1" stroke="#fff" stroke-width="1.4"/><rect x="6" y="9" width="12" height="7" rx="1" stroke="#fff" stroke-width="1.4"/><path d="M4 20h16M8 16v4M16 16v4" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg></div><div class="app-badge" id="badge-douban" style="display:none">0</div><span class="app-name">豆瓣</span></div>
-<div class="app-item" role="button" aria-label="打开抖音" onclick="openApp('douyin')"><div class="app-icon ic-dy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 3v12a4 4 0 1 1-2-3.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M9 3c3 0 5 2 5 5" stroke="#25f4ee" stroke-width="1.6" stroke-linecap="round"/><path d="M14 8c2 1 4 1 5 0" stroke="#fe2c55" stroke-width="1.6" stroke-linecap="round"/></svg></div><div class="app-badge" id="badge-douyin" style="display:none">0</div><span class="app-name">抖音</span></div>
-<div class="app-item" role="button" aria-label="打开小红书" onclick="openApp('redbook')"><div class="app-icon ic-xhs"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="#fff" stroke-width="1.4"/><line x1="9" y1="8" x2="15" y2="8" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="11" x2="15" y2="11" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="14" x2="13" y2="14" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg></div><div class="app-badge" id="badge-redbook" style="display:none">0</div><span class="app-name">小红书</span></div>
-<div class="app-item" role="button" aria-label="打开B站" onclick="openApp('bilibili')"><div class="app-icon ic-bili"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="12" rx="3" stroke="#00a1d6" stroke-width="1.4"/><path d="M8 5l2 2M16 5l-2 2" stroke="#00a1d6" stroke-width="1.4" stroke-linecap="round"/><circle cx="9" cy="13" r="1.2" fill="#00a1d6"/><circle cx="15" cy="13" r="1.2" fill="#00a1d6"/></svg></div><div class="app-badge" id="badge-bilibili" style="display:none">0</div><span class="app-name">B站</span></div>
-<div class="app-item" role="button" aria-label="打开T-FAMILY" onclick="openApp('tfamily')"><div class="app-icon ic-tf"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l2 5h5l-4 3 1.5 5L12 13l-4.5 3L9 11l-4-3h5z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg></div><div class="app-badge" id="badge-tfamily" style="display:none">0</div><span class="app-name">T-FAMILY</span></div>
-<div class="app-item" role="button" aria-label="打开信息" onclick="openApp('imessage')"><div class="app-icon ic-im"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-4l-4 3.5V16H7a3 3 0 0 1-3-3V6z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg></div><div class="app-badge" id="badge-imessage" style="display:none">0</div><span class="app-name">信息</span></div>
+                <div class="home-pages-wrap">
+                    <div class="home-pages">
+                        <div class="home-page">
+                            <div class="home-grid">
+                                <div class="app-item" role="button" aria-label="打开微信" onclick="openApp('wechat')">
+                                    <div class="app-icon ic-wx"><svg width="28" height="28" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <path
+                                                d="M8.5 7C5.5 7 3 9 3 11.5c0 1.4.8 2.6 2 3.4l-.5 2 2.2-1.1c.6.2 1.2.2 1.8.2"
+                                                stroke="#fff" stroke-width="1.4" stroke-linecap="round" />
+                                            <path
+                                                d="M15.5 9c-3.3 0-6 2.2-6 5s2.7 5 6 5c.7 0 1.4-.1 2-.3l2.5 1.3-.6-2.2c1.3-.9 2.1-2.2 2.1-3.8 0-2.8-2.7-5-6-5z"
+                                                stroke="#fff" stroke-width="1.4" stroke-linecap="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-wechat" style="display:none">0</div><span
+                                        class="app-name">微信</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开微博" onclick="openApp('weibo')">
+                                    <div class="app-icon ic-wb"><svg width="26" height="26" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <circle cx="12" cy="12" r="8" stroke="#fff" stroke-width="1.4" />
+                                            <path d="M8 12c1-3 3-4 4-4s3 1 4 4c-1 3-3 4-4 4s-3-1-4-4z" stroke="#fff"
+                                                stroke-width="1.2" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-weibo" style="display:none">0</div><span
+                                        class="app-name">微博</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开豆瓣" onclick="openApp('douban')">
+                                    <div class="app-icon ic-db"><svg width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <rect x="4" y="4" width="16" height="3" rx="1" stroke="#fff"
+                                                stroke-width="1.4" />
+                                            <rect x="6" y="9" width="12" height="7" rx="1" stroke="#fff"
+                                                stroke-width="1.4" />
+                                            <path d="M4 20h16M8 16v4M16 16v4" stroke="#fff" stroke-width="1.4"
+                                                stroke-linecap="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-douban" style="display:none">0</div><span
+                                        class="app-name">豆瓣</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开抖音" onclick="openApp('douyin')">
+                                    <div class="app-icon ic-dy"><svg width="22" height="22" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <path d="M9 3v12a4 4 0 1 1-2-3.5" stroke="#fff" stroke-width="1.6"
+                                                stroke-linecap="round" />
+                                            <path d="M9 3c3 0 5 2 5 5" stroke="#25f4ee" stroke-width="1.6"
+                                                stroke-linecap="round" />
+                                            <path d="M14 8c2 1 4 1 5 0" stroke="#fe2c55" stroke-width="1.6"
+                                                stroke-linecap="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-douyin" style="display:none">0</div><span
+                                        class="app-name">抖音</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开小红书" onclick="openApp('redbook')">
+                                    <div class="app-icon ic-xhs"><svg width="22" height="22" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <rect x="5" y="3" width="14" height="18" rx="2" stroke="#fff"
+                                                stroke-width="1.4" />
+                                            <line x1="9" y1="8" x2="15" y2="8" stroke="#fff" stroke-width="1.2"
+                                                stroke-linecap="round" />
+                                            <line x1="9" y1="11" x2="15" y2="11" stroke="#fff" stroke-width="1.2"
+                                                stroke-linecap="round" />
+                                            <line x1="9" y1="14" x2="13" y2="14" stroke="#fff" stroke-width="1.2"
+                                                stroke-linecap="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-redbook" style="display:none">0</div><span
+                                        class="app-name">小红书</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开B站" onclick="openApp('bilibili')">
+                                    <div class="app-icon ic-bili"><svg width="26" height="26" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <rect x="3" y="7" width="18" height="12" rx="3" stroke="#00a1d6"
+                                                stroke-width="1.4" />
+                                            <path d="M8 5l2 2M16 5l-2 2" stroke="#00a1d6" stroke-width="1.4"
+                                                stroke-linecap="round" />
+                                            <circle cx="9" cy="13" r="1.2" fill="#00a1d6" />
+                                            <circle cx="15" cy="13" r="1.2" fill="#00a1d6" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-bilibili" style="display:none">0</div><span
+                                        class="app-name">B站</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开T-FAMILY"
+                                    onclick="openApp('tfamily')">
+                                    <div class="app-icon ic-tf"><svg width="22" height="22" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <path d="M12 3l2 5h5l-4 3 1.5 5L12 13l-4.5 3L9 11l-4-3h5z" stroke="#fff"
+                                                stroke-width="1.4" stroke-linejoin="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-tfamily" style="display:none">0</div><span
+                                        class="app-name">T-FAMILY</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开信息" onclick="openApp('imessage')">
+                                    <div class="app-icon ic-im"><svg width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none">
+                                            <path
+                                                d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-4l-4 3.5V16H7a3 3 0 0 1-3-3V6z"
+                                                stroke="#fff" stroke-width="1.4" stroke-linejoin="round" />
+                                        </svg></div>
+                                    <div class="app-badge" id="badge-imessage" style="display:none">0</div><span
+                                        class="app-name">信息</span>
+                                </div>
 
-                </div>
-            </div>
-            <div class="home-page">
-                <div class="home-grid">
-<div class="app-item" role="button" aria-label="打开相册" onclick="openApp('album')"><div class="app-icon" style="background:linear-gradient(135deg,#f5af19,#f12711);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#fff" stroke-width="1.4"/><circle cx="8.5" cy="10.5" r="2" stroke="#fff" stroke-width="1.2"/><path d="M3 16l5-4 3 2 4-3 6 4" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="app-name">相册</span></div>
-<div class="app-item" role="button" aria-label="打开电话" onclick="openApp('phone')"><div class="app-icon" style="background:#34c759;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg></div><span class="app-name">电话</span></div>
-<div class="app-item" role="button" aria-label="打开备忘录" onclick="openApp('notes')"><div class="app-icon" style="background:linear-gradient(135deg,#ffecd2,#fcb69f);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" stroke="#8b5e34" stroke-width="1.3"/><path d="M8 7h8M8 11h8M8 15h5" stroke="#8b5e34" stroke-width="1.2" stroke-linecap="round"/></svg></div><span class="app-name">备忘录</span></div>
+                            </div>
+                        </div>
+                        <div class="home-page">
+                            <div class="home-grid">
+                                <div class="app-item" role="button" aria-label="打开相册" onclick="openApp('album')">
+                                    <div class="app-icon" style="background:linear-gradient(135deg,#f5af19,#f12711);">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                            <rect x="3" y="5" width="18" height="14" rx="2" stroke="#fff"
+                                                stroke-width="1.4" />
+                                            <circle cx="8.5" cy="10.5" r="2" stroke="#fff" stroke-width="1.2" />
+                                            <path d="M3 16l5-4 3 2 4-3 6 4" stroke="#fff" stroke-width="1.2"
+                                                stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg></div><span class="app-name">相册</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开电话" onclick="openApp('phone')">
+                                    <div class="app-icon" style="background:#34c759;"><svg width="22" height="22"
+                                            viewBox="0 0 24 24" fill="none">
+                                            <path
+                                                d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"
+                                                stroke="#fff" stroke-width="1.4" stroke-linejoin="round" />
+                                        </svg></div><span class="app-name">电话</span>
+                                </div>
+                                <div class="app-item" role="button" aria-label="打开备忘录" onclick="openApp('notes')">
+                                    <div class="app-icon" style="background:linear-gradient(135deg,#ffecd2,#fcb69f);">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                                            <rect x="5" y="3" width="14" height="18" rx="2" stroke="#8b5e34"
+                                                stroke-width="1.3" />
+                                            <path d="M8 7h8M8 11h8M8 15h5" stroke="#8b5e34" stroke-width="1.2"
+                                                stroke-linecap="round" />
+                                        </svg></div><span class="app-name">备忘录</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="home-page-dots" id="home-page-dots">
+                        <span class="dot active"></span>
+                        <span class="dot"></span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="home-page-dots" id="home-page-dots">
-            <span class="dot active"></span>
-            <span class="dot"></span>
-        </div>
-    </div>
-</div>
-</div>
 
         <!-- App 容器 (严格保留原版的 screen-xxx 命名) -->
         <div class="screen" id="screen-wechat"></div>
@@ -90,10 +222,10 @@
 
     <!-- 依次引入提取出的各个模块 -->
     <script src="lib/js/weui.min.js"></script>
-    <script>if(typeof weui==='undefined'){console.warn('weui 加载失败，微信弹窗功能将降级');}</script>
+    <script>if (typeof weui === 'undefined') { console.warn('weui 加载失败，微信弹窗功能将降级'); }</script>
     <script src="js_game/db_npc.js"></script>
     <script src="js_phone/core.js"></script>
-    <script>if(typeof IC==='undefined'){document.body.innerHTML='<div style="color:#fff;padding:40px;text-align:center;">核心模块加载失败，请检查 js_phone/core.js 是否存在</div>';}</script>
+    <script>if (typeof IC === 'undefined') { document.body.innerHTML = '<div style="color:#fff;padding:40px;text-align:center;">核心模块加载失败，请检查 js_phone/core.js 是否存在</div>'; }</script>
     <script src="js_phone/app_wechat.js"></script>
     <script src="js_phone/app_weibo.js"></script>
     <script src="js_phone/app_douyin.js"></script>
@@ -103,4 +235,5 @@
     <script src="js_phone/app_tfamily.js"></script>
     <script src="js_phone/app_imessage.js"></script>
 </body>
+
 </html>

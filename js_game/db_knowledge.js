@@ -145,7 +145,7 @@ window.LoreDB = {
      * @param {string} platform - 比如 'weibo'
      * @returns {string} 
      */
-    retrieveContext: function(targetIdols, platform) {
+    retrieveContext: function (targetIdols, platform) {
         let contextParts = [this.coreRule];
 
         // 1. 注入平台氛围设定
@@ -156,7 +156,7 @@ window.LoreDB = {
         // 2. 精准提取关联人物的黑料包 (严禁跨代混乱)
         if (targetIdols && targetIdols.length > 0) {
             let idolContext = "\n【当前出场艺人设定(必须转化为口语化吐槽，不可死板复读。非出场艺人不要提)】：";
-            
+
             targetIdols.forEach(name => {
                 const info = this.idols[name];
                 if (info) {
